@@ -88,7 +88,7 @@ void loop() {
   // Non-blocking sample timing
   unsigned long now = micros();
   if (now - lastSampleTime < SAMPLE_INTERVAL_US) return;
-  lastSampleTime = now;
+  lastSampleTime += SAMPLE_INTERVAL_US;
 
   // Read three channels
   // Use readVoltageOS(pin, 4) instead for 4x oversampling if noise is bad
