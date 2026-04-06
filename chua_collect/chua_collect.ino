@@ -44,7 +44,7 @@ const float OFFSET_V = 2.5f;
 //
 // R4 floor: 3 x analogRead at 12-bit = ~15-20 us minimum.
 // Start at 500 and halve until the phase portrait looks like clean orbits.
-const unsigned long SAMPLE_INTERVAL_US = 50;
+const unsigned long SAMPLE_INTERVAL_US = 30;
 
 // ---- Buffer size --------------------------------------------
 // 6 bytes/sample (3 x uint16_t).  Keep total <= ~6 KB to leave
