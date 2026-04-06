@@ -1,302 +1,314 @@
 % =============================================================
-%  Chua Circuit Data Reader, Live Plotter & Analyzer
-%  - Offline mode: reads saved CSV and runs analysis
-%  - Live mode: reads CSV from Arduino over serial, plots in real time,
-%               and optionally saves to CSV
+%  Chua Circuit — Multi-Regime Data Capture & Analyzer
+%
+%  Modes:
+%   'live'    — waits for you to type regime commands in the Serial
+%               Monitor, captures each regime as you send them,
+%               saves each to a labelled CSV, then runs analysis.
+%   'offline' — loads previously saved regime CSVs and runs analysis.
+%
+%  Live workflow:
+%   1. Open this script and set port, baud, and the regime order
+%      you plan to collect (REGIME_IDS below).
+%   2. Run the script.  It opens the serial port and waits.
+%   3. In your circuit: dial in Regime 1 (fixed point).
+%      The script will prompt you; press Enter in the Command Window
+%      to send the regime number + 's' to the Arduino automatically.
+%   4. Data streams in, is saved to chua_regime1_fixed_point.csv, and
+%      the next prompt appears.
+%   5. Repeat for all four regimes.
+%   6. After all regimes are collected, analysis figures are generated.
+%
+%  Offline workflow:
+%   Set mode = 'offline'.  The script looks for the four CSV files in
+%   the working directory and loads them directly.
 % =============================================================
 
 clear; clc; close all;
 
-%% ---- 0. MODE SELECTION -------------------------------------
-% Choose:
-%   'offline' -> read saved CSV file and analyze
-%   'live'    -> stream from Arduino, plot in real time, then analyze
+%% ---- 0. USER SETTINGS ----------------------------------------
 
-mode = 'live';   % <-- change to 'offline' if reading a saved file
+mode = 'live';          % 'live' or 'offline'
 
-%% ---- 1. SETTINGS -------------------------------------------
+% Serial port settings (live mode only)
+port = '/dev/ttyACM0';          % Windows: 'COM3'; Linux/Mac: '/dev/ttyUSB0'
+baud = 2000000;         % R4 USB-CDC ignores this; set high so host doesn't throttle
 
-% Offline file
-filename = 'chua_data.csv';
+% Regimes to collect, in order.
+% Each entry is [regime_id, label, friendly_name]
+REGIMES = {
+    1, 'fixed_point',      'Fixed Point';
+    2, 'limit_cycle',      'Limit Cycle';
+    3, 'period_doubled',   'Period-Doubled';
+    4, 'double_scroll',    'Double Scroll (Chaos)';
+};
 
-% Live serial settings
-port = 'COM3';          % e.g. 'COM3' on Windows, '/dev/ttyUSB0' on Linux
-baud = 115200;
-n_samples = 5000;       % how many samples to capture in live mode
-save_live_csv = true;   % save streamed data to CSV
-live_save_filename = 'chua_live_capture.csv';
+% CSV filenames (same convention in live and offline mode)
+csv_filenames = cellfun(@(id, lbl) ...
+    sprintf('chua_regime%d_%s.csv', id, lbl), ...
+    REGIMES(:,1), REGIMES(:,2), 'UniformOutput', false);
 
-% Live plotting settings
-maxPoints = 2000;       % rolling window for time-series display
+% Live display: rolling window length (samples)
+maxPoints = 2000;
 
-%% ---- 2. LOAD OR STREAM DATA --------------------------------
+%% ---- 1. ACQUIRE DATA ----------------------------------------
+
+n_regimes = size(REGIMES, 1);
+regime_data = cell(n_regimes, 1);   % will hold struct(t,x,y,z,label,name)
 
 switch lower(mode)
-    case 'offline'
-        [t, x, y, z] = read_saved_csv(filename);
 
+    % ----------------------------------------------------------
     case 'live'
-        data = read_serial_live_plot(port, baud, n_samples, maxPoints, ...
-            save_live_csv, live_save_filename);
 
-        t = data(:,1) / 1000.0;   % ms -> s
-        x = data(:,2);
-        y = data(:,3);
-        z = data(:,4);
+        s = serialport(port, baud);
+        configureTerminator(s, 'LF');
+        flush(s);
+        pause(2);   % let Arduino reset after serial open
+
+        % Drain the Arduino boot message
+        pause(0.5);
+        while s.NumBytesAvailable > 0
+            readline(s);
+        end
+
+        for r = 1:n_regimes
+            regime_id   = REGIMES{r,1};
+            regime_lbl  = REGIMES{r,2};
+            regime_name = REGIMES{r,3};
+            out_file    = csv_filenames{r};
+
+            fprintf('\n============================================\n');
+            fprintf('  REGIME %d: %s\n', regime_id, regime_name);
+            fprintf('============================================\n');
+            fprintf('  1. Adjust your circuit to the %s regime.\n', regime_name);
+            fprintf('  2. Press Enter here when ready to start sampling.\n');
+            input('  [Press Enter to start] ', 's');
+
+            % Send regime select + start to Arduino
+            writeline(s, sprintf('%d', regime_id));
+            pause(0.1);
+            writeline(s, 's');
+
+            % The R4 sketch buffers samples in RAM and dumps the full CSV
+            % block AFTER capture completes (between DATA START / DATA END).
+            % We wait for that block, then plot it all at once.
+            fprintf('  Arduino sampling (silent during capture)...\n');
+            fprintf('  Waiting for DATA START block...\n');
+
+            tBuf=[]; xBuf=[]; yBuf=[]; zBuf=[];
+            in_data_block = false;
+            done          = false;
+            timeout_s     = 60;   % max wait for capture + dump
+            t_wait        = tic;
+
+            while ~done && toc(t_wait) < timeout_s
+                if s.NumBytesAvailable == 0
+                    pause(0.01);
+                    continue;
+                end
+                raw = strtrim(readline(s));
+                if isempty(raw), continue; end
+
+                if startsWith(raw, '#')
+                    fprintf('  Arduino: %s\n', raw);
+                    if contains(raw, 'DATA START')
+                        in_data_block = true;
+                    elseif contains(raw, 'DATA END') || contains(raw, 'ABORTED')
+                        done = true;
+                    end
+                    continue;
+                end
+
+                if startsWith(raw, 'time_ms'), continue; end
+
+                if ~in_data_block, continue; end   % ignore anything before block
+
+                vals = sscanf(raw, '%f,%f,%f,%f');
+                if numel(vals) ~= 4, continue; end
+
+                tBuf(end+1) = vals(1); %#ok<AGROW>
+                xBuf(end+1) = vals(2); %#ok<AGROW>
+                yBuf(end+1) = vals(3); %#ok<AGROW>
+                zBuf(end+1) = vals(4); %#ok<AGROW>
+
+                if mod(numel(tBuf), 200) == 0
+                    fprintf('  %d samples received\n', numel(tBuf));
+                end
+            end
+
+            if toc(t_wait) >= timeout_s
+                warning('Timeout waiting for regime %d data.', regime_id);
+            end
+
+            % Save to CSV
+            fid = fopen(out_file, 'w');
+            fprintf(fid, '# Chua circuit — regime %d: %s\n', regime_id, regime_lbl);
+            fprintf(fid, 'time_ms,x_V,y_V,z_V\n');
+            for ii = 1:numel(tBuf)
+                fprintf(fid, '%.3f,%.4f,%.4f,%.4f\n', tBuf(ii),xBuf(ii),yBuf(ii),zBuf(ii));
+            end
+            fclose(fid);
+
+            % Static plot of the captured data
+            fig = figure('Name', sprintf('Regime %d: %s', regime_id, regime_name), ...
+                'Position', [80 80 1100 650], 'NumberTitle', 'off');
+            tl = tiledlayout(fig, 2, 1, 'TileSpacing', 'compact');
+
+            ax1 = nexttile(tl);
+            plot(ax1, tBuf, xBuf, 'Color', [0.20 0.45 0.80], 'LineWidth', 0.5); hold(ax1,'on');
+            plot(ax1, tBuf, yBuf, 'Color', [0.80 0.20 0.20], 'LineWidth', 0.5);
+            plot(ax1, tBuf, zBuf, 'Color', [0.55 0.20 0.75], 'LineWidth', 0.5);
+            xlabel(ax1, 'Time (ms)'); ylabel(ax1, 'Voltage (V)');
+            title(ax1, sprintf('Time series — %s', regime_name));
+            legend(ax1, {'x=Vc1','y=Vc2','z=IL'}); grid(ax1, 'on');
+
+            ax2 = nexttile(tl);
+            plot(ax2, xBuf, yBuf, 'Color', [0.10 0.55 0.40], 'LineWidth', 0.4);
+            xlabel(ax2, 'x = Vc1 (V)'); ylabel(ax2, 'y = Vc2 (V)');
+            title(ax2, 'Phase portrait x–y'); grid(ax2, 'on');
+            drawnow;
+            fprintf('  Saved to %s  (%d samples)\n', out_file, numel(tBuf));
+
+            % Store in cell array for later analysis
+            t_s = tBuf(:) / 1000.0;
+            regime_data{r} = struct('t', t_s, 'x', xBuf(:), 'y', yBuf(:), ...
+                'z', zBuf(:), 'label', regime_lbl, 'name', regime_name, ...
+                'id', regime_id);
+        end
+
+        % Close serial
+        try; writeline(s, 'q'); catch; end
+        clear s;
+        fprintf('\nAll regimes captured. Running analysis...\n');
+
+    % ----------------------------------------------------------
+    case 'offline'
+
+        fprintf('Loading saved CSV files...\n');
+        for r = 1:n_regimes
+            fname = csv_filenames{r};
+            if ~isfile(fname)
+                error('File not found: %s\nRun in live mode first, or check filenames.', fname);
+            end
+            fid = fopen(fname, 'r');
+            raw = textscan(fid, '%f %f %f %f', 'Delimiter', ',', ...
+                'CommentStyle', '#', 'HeaderLines', 1);
+            fclose(fid);
+            t_s = raw{1} / 1000.0;
+            regime_data{r} = struct('t', t_s, 'x', raw{2}, 'y', raw{3}, ...
+                'z', raw{4}, 'label', REGIMES{r,2}, 'name', REGIMES{r,3}, ...
+                'id', REGIMES{r,1});
+            fprintf('  Loaded %d samples from %s\n', numel(t_s), fname);
+        end
 
     otherwise
-        error('Unknown mode. Use ''offline'' or ''live''.');
+        error('Unknown mode ''%s''. Use ''live'' or ''offline''.', mode);
 end
 
-%% ---- 3. BASIC INFO -----------------------------------------
+%% ---- 2. RESAMPLE TO UNIFORM GRID ----------------------------
+% Arduino micros() drift makes timestamps slightly non-uniform;
+% resample to a uniform grid before spectral analysis.
 
-N = length(t);
-fprintf('Loaded %d samples\n', N);
-fprintf('Duration: %.3f s\n', t(end) - t(1));
+for r = 1:n_regimes
+    d  = regime_data{r};
+    N  = numel(d.t);
+    tu = linspace(d.t(1), d.t(end), N)';
+    regime_data{r}.t_u = tu;
+    regime_data{r}.x_u = interp1(d.t, d.x, tu, 'pchip');
+    regime_data{r}.y_u = interp1(d.t, d.y, tu, 'pchip');
+    regime_data{r}.z_u = interp1(d.t, d.z, tu, 'pchip');
+    regime_data{r}.dt  = median(diff(d.t));
+    regime_data{r}.fs  = 1 / regime_data{r}.dt;
+end
 
-% Compute uniform sample interval (Arduino timing is not perfect)
-dt_nominal = median(diff(t));
-fs = 1 / dt_nominal;
-fprintf('Median sample interval: %.4f ms  (fs ~ %.1f Hz)\n', ...
-    dt_nominal*1000, fs);
+%% ---- 3. ANALYSIS PLOTS  -------------------------------------
 
-%% ---- 4. RESAMPLE TO UNIFORM GRID ---------------------------
-% Arduino micros() drift means timestamps are not perfectly uniform.
-% Resample onto a uniform grid before FFT or further analysis.
+colors = { [0.20 0.45 0.80],   % blue  — regime 1
+           [0.10 0.60 0.38],   % green — regime 2
+           [0.85 0.58 0.10],   % amber — regime 3
+           [0.75 0.18 0.18] }; % red   — regime 4
 
-t_uniform = linspace(t(1), t(end), N)';
-x_u = interp1(t, x, t_uniform, 'pchip');
-y_u = interp1(t, y, t_uniform, 'pchip');
-z_u = interp1(t, z, t_uniform, 'pchip');
+% 3a. Phase portraits (x vs y) — all four regimes in one figure
+figure('Name', 'Phase Portraits — All Regimes', 'Position', [100 100 1300 350]);
+for r = 1:n_regimes
+    d = regime_data{r};
+    subplot(1, 4, r)
+    plot(d.x_u, d.y_u, 'Color', colors{r}, 'LineWidth', 0.3)
+    xlabel('V_{C1} (V)'); ylabel('V_{C2} (V)')
+    title(sprintf('R%d: %s', d.id, d.name), 'FontSize', 9)
+    grid on; axis tight
+end
+sgtitle('Chua Circuit Phase Portraits — x vs y')
 
-%% ---- 5. PHASE PORTRAITS ------------------------------------
+% 3b. 3-D attractors — separate figure per regime
+for r = 1:n_regimes
+    d = regime_data{r};
+    figure('Name', sprintf('3D Attractor — %s', d.name), ...
+        'Position', [120+r*30 120+r*20 600 500]);
+    plot3(d.x_u, d.y_u, d.z_u, 'Color', colors{r}, 'LineWidth', 0.25)
+    xlabel('V_{C1} (V)'); ylabel('V_{C2} (V)'); zlabel('I_L (V)')
+    title(sprintf('R%d: %s — 3D attractor', d.id, d.name))
+    grid on; axis tight; view(35, 25); rotate3d on
+end
 
-figure('Name', 'Chua Attractor - Phase Portraits', ...
-    'Position', [100 100 1200 400]);
+% 3c. Time series — all channels, one regime per figure
+for r = 1:n_regimes
+    d = regime_data{r};
+    figure('Name', sprintf('Time Series — %s', d.name), ...
+        'Position', [140+r*20 100 900 500]);
+    sigs = {d.x_u, d.y_u, d.z_u};
+    ylabels = {'V_{C1} (V)', 'V_{C2} (V)', 'I_L sense (V)'};
+    chnames = {'x  (Vc1)', 'y  (Vc2)', 'z  (IL)'};
+    for k = 1:3
+        subplot(3,1,k)
+        plot(d.t_u, sigs{k}, 'Color', colors{r}, 'LineWidth', 0.5)
+        ylabel(ylabels{k}); title(chnames{k}); grid on
+        xlim([d.t_u(1) d.t_u(end)])
+    end
+    xlabel('Time (s)')
+    sgtitle(sprintf('R%d: %s — Time Series', d.id, d.name))
+end
 
-subplot(1,3,1)
-plot(x_u, y_u, 'b', 'LineWidth', 0.3)
-xlabel('V_{C1}  (V)'); ylabel('V_{C2}  (V)')
-title('x-y  (Vc1 vs Vc2)')
-grid on; axis tight
-
-subplot(1,3,2)
-plot(x_u, z_u, 'r', 'LineWidth', 0.3)
-xlabel('V_{C1}  (V)'); ylabel('V_{IL}  (V)')
-title('x-z  (Vc1 vs IL)')
-grid on; axis tight
-
-subplot(1,3,3)
-plot(y_u, z_u, 'm', 'LineWidth', 0.3)
-xlabel('V_{C2}  (V)'); ylabel('V_{IL}  (V)')
-title('y-z  (Vc2 vs IL)')
-grid on; axis tight
-
-sgtitle('Chua Double Scroll Attractor')
-
-%% ---- 6. 3D ATTRACTOR ---------------------------------------
-
-figure('Name', 'Chua 3D Attractor')
-plot3(x_u, y_u, z_u, 'k', 'LineWidth', 0.2)
-xlabel('V_{C1}  (V)')
-ylabel('V_{C2}  (V)')
-zlabel('V_{IL}  (V)')
-title('Chua Double Scroll — 3D')
-grid on; axis tight; view(35, 25)
-rotate3d on   % enable mouse rotation
-
-%% ---- 7. TIME SERIES ----------------------------------------
-
-figure('Name', 'Time Series')
-subplot(3,1,1)
-plot(t_uniform, x_u, 'b', 'LineWidth', 0.5)
-ylabel('V_{C1} (V)'); title('x — V_{C1}'); grid on; xlim([t(1) t(end)])
-
-subplot(3,1,2)
-plot(t_uniform, y_u, 'r', 'LineWidth', 0.5)
-ylabel('V_{C2} (V)'); title('y — V_{C2}'); grid on; xlim([t(1) t(end)])
-
-subplot(3,1,3)
-plot(t_uniform, z_u, 'm', 'LineWidth', 0.5)
-ylabel('V_{IL} (V)'); title('z — I_L sense'); grid on; xlim([t(1) t(end)])
-xlabel('Time (s)')
-
-%% ---- 8. POWER SPECTRAL DENSITY -----------------------------
-
-figure('Name', 'Power Spectral Density')
-signals = {x_u, y_u, z_u};
-names   = {'V_{C1}', 'V_{C2}', 'V_{IL}'};
-colors  = {'b', 'r', 'm'};
-
-for k = 1:3
-    [pxx, f] = pwelch(signals{k}, hamming(512), 256, 512, fs);
-    semilogy(f, pxx, colors{k}, 'LineWidth', 1.2); hold on
+% 3d. Power spectral density — all regimes overlaid
+figure('Name', 'PSD — All Regimes', 'Position', [100 100 900 500]);
+hold on
+legends_psd = cell(n_regimes, 1);
+for r = 1:n_regimes
+    d = regime_data{r};
+    [pxx, f] = pwelch(d.x_u, hamming(512), 256, 512, d.fs);
+    semilogy(f, pxx, 'Color', colors{r}, 'LineWidth', 1.3)
+    legends_psd{r} = sprintf('R%d: %s', d.id, d.name);
 end
 xlabel('Frequency (Hz)'); ylabel('PSD (V^2/Hz)')
-title('Power Spectral Density')
-legend(names); grid on
-% Broadband spectrum is a signature of chaos
+title('Power Spectral Density — V_{C1} channel, all regimes')
+legend(legends_psd); grid on
+% Discrete peaks -> periodic; broadband floor -> chaos
 
-%% ---- 9. BASIC STATISTICS -----------------------------------
+%% ---- 4. STATISTICS TABLE ------------------------------------
 
-fprintf('\n--- Signal Statistics ---\n')
-fprintf('%8s  %8s  %8s  %8s  %8s\n', 'Channel', 'Mean', 'Std', 'Min', 'Max')
-fprintf('%8s  %8.4f  %8.4f  %8.4f  %8.4f\n', 'x (Vc1)', mean(x_u), std(x_u), min(x_u), max(x_u))
-fprintf('%8s  %8.4f  %8.4f  %8.4f  %8.4f\n', 'y (Vc2)', mean(y_u), std(y_u), min(y_u), max(y_u))
-fprintf('%8s  %8.4f  %8.4f  %8.4f  %8.4f\n', 'z (IL) ', mean(z_u), std(z_u), min(z_u), max(z_u))
+fprintf('\n%s\n', repmat('=', 1, 72));
+fprintf('  Signal statistics\n');
+fprintf('%s\n', repmat('=', 1, 72));
+fprintf('%-28s %8s %8s %8s %8s %8s\n', ...
+    'Regime / Channel', 'Mean', 'Std', 'Min', 'Max', 'RMS');
+fprintf('%s\n', repmat('-', 1, 72));
 
-%% ---- FUNCTIONS ---------------------------------------------
-
-function [t, x, y, z] = read_saved_csv(filename)
-    fid = fopen(filename, 'r');
-    if fid == -1
-        error('Cannot open file: %s', filename);
+for r = 1:n_regimes
+    d = regime_data{r};
+    sigs = {d.x_u, d.y_u, d.z_u};
+    ch   = {'x (Vc1)', 'y (Vc2)', 'z (IL) '};
+    for k = 1:3
+        v   = sigs{k};
+        rms = sqrt(mean(v.^2));
+        label = '';
+        if k == 1
+            label = sprintf('R%d %-20s', d.id, d.name);
+        end
+        fprintf('%-28s %8.4f %8.4f %8.4f %8.4f %8.4f   [%s]\n', ...
+            label, mean(v), std(v), min(v), max(v), rms, ch{k});
     end
-
-    raw = textscan(fid, '%f %f %f %f', ...
-        'Delimiter', ',', ...
-        'CommentStyle', '#', ...
-        'HeaderLines', 1);
-    fclose(fid);
-
-    t = raw{1} / 1000.0;   % ms -> seconds
-    x = raw{2};
-    y = raw{3};
-    z = raw{4};
+    fprintf('%s\n', repmat('-', 1, 72));
 end
 
-function data = read_serial_live_plot(port, baud, n_samples, maxPoints, save_csv, save_filename)
-    % Live serial read + oscilloscope-style plotting + optional CSV save
-    %
-    % Expected Arduino format:
-    %   # comments...
-    %   time_ms,x_V,y_V,z_V
-    %   12.34,-0.123,0.456,0.789
-
-    s = serialport(port, baud);
-    configureTerminator(s, 'LF');
-    flush(s);
-    pause(2);  % allow Arduino reset on serial connection
-
-    if save_csv
-        fid = fopen(save_filename, 'w');
-        if fid == -1
-            error('Cannot create save file: %s', save_filename);
-        end
-        fprintf(fid, '# Chua live capture\n');
-        fprintf(fid, 'time_ms,x_V,y_V,z_V\n');
-    else
-        fid = -1;
-    end
-
-    % Create live figure
-    fig = figure('Name', 'Chua Live Plot', ...
-        'Position', [100 100 1200 700], ...
-        'NumberTitle', 'off');
-
-    tiledlayout(2,1);
-
-    % Top: rolling time traces
-    ax1 = nexttile;
-    hx = animatedline('DisplayName', 'x = Vc1');
-    hy = animatedline('DisplayName', 'y = Vc2');
-    hz = animatedline('DisplayName', 'z = Il');
-    grid(ax1, 'on');
-    xlabel(ax1, 'Time (ms)');
-    ylabel(ax1, 'Voltage (V)');
-    title(ax1, 'Live Signals');
-    legend(ax1, 'show');
-
-    % Bottom: live XY portrait
-    ax2 = nexttile;
-    hxy = animatedline('DisplayName', 'x vs y');
-    grid(ax2, 'on');
-    xlabel(ax2, 'x = Vc1 (V)');
-    ylabel(ax2, 'y = Vc2 (V)');
-    title(ax2, 'Live Phase Portrait');
-
-    drawnow;
-
-    fprintf('Waiting for Arduino... sending ''s'' to start\n');
-    writeline(s, 's');
-
-    data = zeros(n_samples, 4);
-    k = 0;
-
-    timeBuf = [];
-    xBuf = [];
-    yBuf = [];
-    zBuf = [];
-
-    while k < n_samples && ishandle(fig)
-        line = strtrim(readline(s));
-
-        if isempty(line) || startsWith(line, "#") || startsWith(line, "time_ms")
-            continue;
-        end
-
-        vals = sscanf(line, '%f,%f,%f,%f');
-        if numel(vals) ~= 4
-            continue;
-        end
-
-        k = k + 1;
-        data(k,:) = vals(:)';
-
-        t = vals(1);
-        x = vals(2);
-        y = vals(3);
-        z = vals(4);
-
-        if fid ~= -1
-            fprintf(fid, '%.3f,%.4f,%.4f,%.4f\n', t, x, y, z);
-        end
-
-        timeBuf(end+1) = t; %#ok<AGROW>
-        xBuf(end+1) = x; %#ok<AGROW>
-        yBuf(end+1) = y; %#ok<AGROW>
-        zBuf(end+1) = z; %#ok<AGROW>
-
-        % Rolling window for time-domain display
-        if numel(timeBuf) > maxPoints
-            timeBuf = timeBuf(end-maxPoints+1:end);
-            xBuf = xBuf(end-maxPoints+1:end);
-            yBuf = yBuf(end-maxPoints+1:end);
-            zBuf = zBuf(end-maxPoints+1:end);
-
-            clearpoints(hx); clearpoints(hy); clearpoints(hz); clearpoints(hxy);
-            addpoints(hx, timeBuf, xBuf);
-            addpoints(hy, timeBuf, yBuf);
-            addpoints(hz, timeBuf, zBuf);
-            addpoints(hxy, xBuf, yBuf);
-        else
-            addpoints(hx, t, x);
-            addpoints(hy, t, y);
-            addpoints(hz, t, z);
-            addpoints(hxy, x, y);
-        end
-
-        if mod(k, 50) == 0
-            drawnow limitrate;
-        end
-
-        if mod(k, 500) == 0
-            fprintf('  %d / %d samples\n', k, n_samples);
-        end
-    end
-
-    % Stop Arduino
-    try
-        writeline(s, 'q');
-    catch
-    end
-
-    if fid ~= -1
-        fclose(fid);
-        fprintf('Saved live capture to %s\n', save_filename);
-    end
-
-    data = data(1:k,:);
-    clear s;
-    fprintf('Done. Collected %d samples.\n', k);
-end
+fprintf('\nAll figures generated.  CSVs saved in working directory.\n');
