@@ -111,172 +111,340 @@ for r = 1:n_regimes
     title(sprintf('%s: phase portrait (measured)', regime_name));
     grid on;
 
-    %% Koopman mode reconstruction for the limit cycle only
-    if r == 2
-        fprintf('  Building Koopman mode reconstruction for limit cycle...\n');
+    %% Koopman mode reconstruction — limit cycle (r=2) and period-doubled (r=3)
+    %
+    % MATHEMATICAL BASIS
+    % ------------------
+    % EDMD finds K such that K*Psi(x_n) ≈ Psi(x_{n+1}).  Its eigendecomposition
+    %   K * Phi = Phi * diag(lambda)
+    % gives the spectral expansion
+    %   Psi(x_n) ≈ K^n * psi0 = Phi * diag(lambda)^n * a,   a = pinv(Phi)*psi0
+    %
+    % Projecting onto the physical state with the selector C (3 x N_psi):
+    %   x_n ≈ C * Psi(x_n) = sum_k  a_k * lambda_k^n * v_k
+    %
+    % where v_k = C * phi_k in R^3 is the k-th Koopman mode — a 3-vector whose
+    % three entries give the relative amplitude and phase with which each of the
+    % three state variables (x, y, z) participates in mode k.  The scalar
+    % a_k * lambda_k^n drives the temporal evolution.
+    %
+    % For the limit cycle the dominant eigenvalues come in conjugate pairs at
+    % the fundamental frequency f0 and its harmonics; including all bounded
+    % modes (|lambda| <= 1.05) reconstructs the full waveform.
+    %
+    % For the period-doubled attractor the same formula holds, but the leading
+    % pair sits at f0/2, and pairs at 3f0/2, 5f0/2, ... also appear — a direct
+    % signature of the period-doubling bifurcation visible in all three states.
+    if r == 2 || r == 3
+        fprintf('  Building Koopman mode reconstruction for %s...\n', regime_name);
 
-        % Modal coordinates
-        W = pinv(Phi);
+        % For period-doubled: the pwl dictionary (7 observables) cannot
+        % represent the period-doubling Koopman eigenfunction — the function
+        % that changes sign between the two half-cycles.  Re-run EDMD with a
+        % degree-3 polynomial dictionary (20 observables) so the half-period
+        % mode at ~f0/2 can appear.  The main-loop one-step prediction is
+        % unchanged; only the reconstruction uses this richer decomposition.
+        if r == 3
+            dict_recon = struct('type', 'poly', 'degree', 3);
+            [Psi_X_recon, labels_recon] = build_dictionary(X_all, dict_recon);
+            [Psi_Y_recon, ~]            = build_dictionary(Y_all, dict_recon);
+            [K_recon, lambda, Phi] = edmd(Psi_X_recon, Psi_Y_recon, edmd_opts);
+            Psi_X = Psi_X_recon;
+            err_recon = norm(Psi_Y_recon - K_recon*Psi_X_recon, 'fro') / norm(Psi_Y_recon, 'fro');
+            fprintf('  Poly-3 dictionary (%d observables), one-step error: %.4e\n', ...
+                size(Psi_X_recon, 1), err_recon);
+            % Recompute state indices in the new dictionary
+            for j = 1:3
+                idx = find(strcmp(labels_recon, state_labels{j}), 1);
+                if isempty(idx)
+                    error('State label "%s" not found in poly-3 dictionary.', state_labels{j});
+                end
+                state_idx(j) = idx;
+            end
+        end
+
+        % Modal coordinates: a = pinv(Phi) * psi0
+        W    = pinv(Phi);
         psi0 = Psi_X(:, 1);
-        a = W * psi0;
+        a    = W * psi0;
 
-        % Selector matrix for physical state
+        % Selector matrix C (3 x N_psi): extracts physical states from Psi
         Npsi = size(Psi_X, 1);
-        C = zeros(3, Npsi);
+        C    = zeros(3, Npsi);
         for j = 1:3
             C(j, state_idx(j)) = 1;
         end
 
-        % Koopman modes in physical coordinates
+        % Koopman modes in physical coordinates: V(:,k) = C * phi_k in R^3
         Vkoop = C * Phi;
 
-        % IMPORTANT: only keep bounded / near-bounded modes for reconstruction
+        % Retain only bounded/near-bounded modes
         stable_mask = abs(lambda) <= 1.05;
-
         fprintf('  Number of bounded modes |lambda| <= 1.05: %d / %d\n', ...
             nnz(stable_mask), numel(lambda));
 
-        % Build contributions over time only for bounded modes
-        nvec = 0:(M-1);
+        % state_modes(j, n, k) = Re[ v_k(j) * a_k * lambda_k^{n-1} ]
+        % Each slice (:,:,k) is the 3-state time series contributed by mode k.
+        nvec        = 0:(M-1);
         state_modes = zeros(3, M, Npsi);
         for k = 1:Npsi
             if stable_mask(k)
-                time_factor = a(k) * (lambda(k) .^ nvec);
-                state_modes(:, :, k) = Vkoop(:, k) * time_factor;
+                time_factor          = a(k) * (lambda(k) .^ nvec);   % 1 x M
+                state_modes(:, :, k) = Vkoop(:, k) * time_factor;    % 3 x M
             end
         end
 
-        % Measured signal
-        x1_true = X_all(1, :);
+        % Unit-circle projected modes
+        % ----------------------------
+        % On any periodic attractor the true Koopman eigenvalues for sustained
+        % oscillation lie exactly on the unit circle (|lambda| = 1).  EDMD
+        % approximates the global operator with a finite dictionary, so
+        % eigenvalues are pulled slightly inside: |lambda| < 1.  Over thousands
+        % of samples this causes a_k * lambda_k^n -> 0 even though the physical
+        % signal never decays.
+        %
+        % Fix: for oscillatory modes (Im(lambda) != 0) replace lambda_k with
+        % lambda_k / |lambda_k| in the time propagation only.  This preserves
+        % the frequency and phase that EDMD identified while removing the
+        % spurious amplitude decay.  Real/DC modes (Im ≈ 0) are left unchanged.
+        state_modes_unit = zeros(3, M, Npsi);
+        for k = 1:Npsi
+            if stable_mask(k)
+                lk = lambda(k);
+                if abs(imag(lk)) > 1e-8
+                    lk = lk / abs(lk);   % project to unit circle
+                end
+                time_factor              = a(k) * (lk .^ nvec);
+                state_modes_unit(:,:,k)  = Vkoop(:, k) * time_factor;
+            end
+        end
 
-        % ============================================================
-        % Diagnostic 1: all bounded-mode reconstruction
-        x1_rec_all = real(sum(state_modes(1, :, stable_mask), 3));
-        err_all = norm(x1_true - x1_rec_all) / norm(x1_true);
+        % Measured signals for all three states
+        x_true = X_all;   % 3 x M  (rows: x, y, z)
 
-        fprintf('  Limit-cycle modal reconstruction error:\n');
-        fprintf('    bounded all modes     : %.4e\n', err_all);
+        % --- All bounded modes ---
+        x_rec_all      = real(sum(state_modes(     :, :, stable_mask), 3));
+        x_rec_unit_all = real(sum(state_modes_unit(:, :, stable_mask), 3));
 
-        % Diagnostic 2: modal consistency in lifted space (bounded modes only)
-        Psi_modal = zeros(size(Psi_X));
+        % Lifted-space modal consistency (diagnostic)
         stable_idx = find(stable_mask);
+        Psi_modal  = zeros(size(Psi_X));
         for n = 1:M
-            tmp = zeros(Npsi,1);
+            tmp = zeros(Npsi, 1);
             for kk = stable_idx.'
-                tmp = tmp + Phi(:,kk) * (a(kk) * lambda(kk)^(n-1));
+                tmp = tmp + Phi(:, kk) * (a(kk) * lambda(kk)^(n-1));
             end
             Psi_modal(:, n) = tmp;
         end
         Psi_err = norm(Psi_X - Psi_modal, 'fro') / norm(Psi_X, 'fro');
-        fprintf('    bounded lifted modal consistency error: %.4e\n', Psi_err);
+        fprintf('  Bounded lifted-space modal consistency error: %.4e\n', Psi_err);
 
-        % ============================================================
-        % Rank bounded modes by total time-domain energy in x1
+        % --- Rank modes by x-signal energy, preserving conjugate pairs ---
+        % Score using the unit-projected modes so decaying amplitudes do not
+        % bias the ranking (matters most for the period-doubled regime).
         mode_score = zeros(Npsi, 1);
         for k = 1:Npsi
             if stable_mask(k)
-                contrib = real(state_modes(1, :, k));
-                mode_score(k) = norm(contrib);
+                mode_score(k) = norm(real(state_modes_unit(1, :, k)));
             end
         end
         [~, ord_modes] = sort(mode_score, 'descend');
 
-        selected_3  = pick_conjugate_safe_modes(lambda, ord_modes, 3, stable_mask);
+        selected_3  = pick_conjugate_safe_modes(lambda, ord_modes, 3,  stable_mask);
         selected_10 = pick_conjugate_safe_modes(lambda, ord_modes, 10, stable_mask);
 
-        fprintf('  Selected modes for ~3-mode reconstruction:\n');
-        disp(selected_3.');
+        % Reconstruct all 3 states from selected modes (both raw and projected)
+        x_rec_3       = real(sum(state_modes(     :, :, selected_3),  3));
+        x_rec_10      = real(sum(state_modes(     :, :, selected_10), 3));
+        x_rec_unit_3  = real(sum(state_modes_unit(:, :, selected_3),  3));
+        x_rec_unit_10 = real(sum(state_modes_unit(:, :, selected_10), 3));
 
-        fprintf('  Selected eigenvalues (~3 modes):\n');
+        % Reconstruction errors per state (unit-projected, as the honest metric
+        % for periodic attractors)
+        state_sym = {'x', 'y', 'z'};
+        fprintf('  Modal reconstruction errors per state (unit-circle projected):\n');
+        for j = 1:3
+            ea  = norm(x_true(j,:) - x_rec_unit_all(j,:)) / norm(x_true(j,:));
+            e3  = norm(x_true(j,:) - x_rec_unit_3(j,:))   / norm(x_true(j,:));
+            e10 = norm(x_true(j,:) - x_rec_unit_10(j,:))  / norm(x_true(j,:));
+            fprintf('    %s:  all-bounded=%.3e  top-3=%.3e  top-10=%.3e\n', ...
+                state_sym{j}, ea, e3, e10);
+        end
+
+        % Selected mode diagnostics
+        fprintf('  Selected eigenvalues (top ~3 modes):\n');
         disp(lambda(selected_3));
-
-        fprintf('  Selected modes for ~10-mode reconstruction:\n');
-        disp(selected_10.');
-
-        fprintf('  Selected eigenvalues (~10 modes):\n');
+        fprintf('  Selected eigenvalues (top ~10 modes):\n');
         disp(lambda(selected_10));
 
-        % Reconstruct x1(t) from selected modes
-        x1_rec_3  = real(sum(state_modes(1, :, selected_3), 3));
-        x1_rec_10 = real(sum(state_modes(1, :, selected_10), 3));
-
-        % Raw errors
-        err3  = norm(x1_true - x1_rec_3) / norm(x1_true);
-        err10 = norm(x1_true - x1_rec_10) / norm(x1_true);
-
-        fprintf('    top ~3 bounded modes  : %.4e\n', err3);
-        fprintf('    top ~10 bounded modes : %.4e\n', err10);
-
-        % Centered errors
-        x1_true_c    = x1_true - mean(x1_true);
-        x1_rec_3_c   = x1_rec_3 - mean(x1_rec_3);
-        x1_rec_10_c  = x1_rec_10 - mean(x1_rec_10);
-        x1_rec_all_c = x1_rec_all - mean(x1_rec_all);
-
-        err3_c   = norm(x1_true_c - x1_rec_3_c) / norm(x1_true_c);
-        err10_c  = norm(x1_true_c - x1_rec_10_c) / norm(x1_true_c);
-        errall_c = norm(x1_true_c - x1_rec_all_c) / norm(x1_true_c);
-
-        fprintf('    centered bounded all modes     : %.4e\n', errall_c);
-        fprintf('    centered top ~3 bounded modes  : %.4e\n', err3_c);
-        fprintf('    centered top ~10 bounded modes : %.4e\n', err10_c);
-
-        % Frequencies of selected oscillatory modes
-        fprintf('  Selected modal frequencies (~10 bounded modes):\n');
+        % Frequencies of dominant oscillatory modes
+        % For period-doubled (r=3) the lowest frequency should be ~f0/2
+        % where f0 is the limit-cycle fundamental.  If all listed frequencies
+        % are multiples of f0, the half-period mode is not being captured by
+        % the dictionary and the reconstruction will not show two loops.
+        fprintf('  Selected modal frequencies (top-10 bounded modes):\n');
+        sel_freqs = [];
         for idx = selected_10
             if abs(imag(lambda(idx))) > 1e-8
                 fk = angle(lambda(idx)) / (2*pi*dt);
+                sel_freqs(end+1) = abs(fk); %#ok<AGROW>
                 fprintf('    mode %d: |lambda|=%.4f, f=%.3f Hz\n', ...
                     idx, abs(lambda(idx)), fk);
             end
         end
+        if r == 3 && ~isempty(sel_freqs)
+            f_min = min(sel_freqs);
+            f_max = max(sel_freqs);
+            fprintf('  Period-doubled check: lowest f=%.3f Hz, highest f=%.3f Hz\n', ...
+                f_min, f_max);
+            fprintf('  Ratio highest/lowest = %.2f  (expect ~%d for %d harmonics)\n', ...
+                f_max/f_min, round(f_max/f_min), round(f_max/f_min));
+        end
 
         % ============================================================
-        % Figure 1: measured vs reconstructed waveform
-        figure('Name', 'Limit Cycle — Koopman Mode Reconstruction', ...
-               'Position', [180 120 1000 900]);
+        % Window length for time-series plots: show ~6 complete periods
+        % so individual cycles are legible rather than a solid block.
+        % Estimate period from the lowest-frequency oscillatory mode selected.
+        osc_freqs = arrayfun(@(k) abs(angle(lambda(k)))/(2*pi*dt), selected_10);
+        osc_freqs(osc_freqs < 1e-4) = inf;   % ignore DC
+        f_dom  = min(osc_freqs);             % dominant (lowest) frequency
+        n_plot = min(M, max(200, round(6 / (f_dom * dt))));
+        t_win  = t(1:n_plot);
+        fprintf('  Plot window: %d samples (%.1f periods of %.2f Hz)\n', ...
+            n_plot, n_plot*dt*f_dom, f_dom);
 
-        subplot(3,1,1);
-        plot(t, x1_true, 'k-', 'LineWidth', 1.2); hold on;
-        plot(t, x1_rec_all, 'g--', 'LineWidth', 1.2);
-        xlabel('t (s)');
-        ylabel('x_1 (V)');
-        title(sprintf('Bounded all-mode reconstruction (err = %.3e, centered = %.3e)', err_all, errall_c));
-        legend('Measured', 'Bounded all modes', 'Location', 'best');
-        grid on;
+        % ============================================================
+        % Tabbed figure: all Koopman reconstruction views in one window
+        %   Tab 1 — Time Series   : 3 states × 3 mode sets (3×3 grid)
+        %   Tab 2 — Modal Contrib : per-mode x/y/z contributions
+        %   Tab 3 — Phase Plane   : reconstructed x-y attractor shape
+        rec_data   = {x_rec_unit_all, x_rec_unit_3,  x_rec_unit_10};
+        rec_labels = {'All bounded (proj.)', 'Top ~3 (proj.)', 'Top ~10 (proj.)'};
+        rec_colors = {'g--', 'r--', 'b--'};
 
-        subplot(3,1,2);
-        plot(t, x1_true, 'k-', 'LineWidth', 1.2); hold on;
-        plot(t, x1_rec_3, 'r--', 'LineWidth', 1.2);
-        xlabel('t (s)');
-        ylabel('x_1 (V)');
-        title(sprintf('Top ~3 bounded modes (err = %.3e, centered = %.3e)', err3, err3_c));
-        legend('Measured', 'Top modes reconstruction', 'Location', 'best');
-        grid on;
+        fig_tabs = figure('Name', sprintf('%s — Koopman Reconstruction', regime_name), ...
+                          'Position', [80 60 1300 900]);
+        tg = uitabgroup('Parent', fig_tabs);
 
-        subplot(3,1,3);
-        plot(t, x1_true, 'k-', 'LineWidth', 1.2); hold on;
-        plot(t, x1_rec_10, 'b--', 'LineWidth', 1.2);
-        xlabel('t (s)');
-        ylabel('x_1 (V)');
-        title(sprintf('Top ~10 bounded modes (err = %.3e, centered = %.3e)', err10, err10_c));
-        legend('Measured', 'Top modes reconstruction', 'Location', 'best');
-        grid on;
+        % ------ Tab 1: Time Series ------
+        tab_ts = uitab('Parent', tg, 'Title', 'Time Series');
+        tl_ts  = tiledlayout(tab_ts, 3, 3, ...
+                             'Padding', 'compact', 'TileSpacing', 'compact');
+        title(tl_ts, ...
+            sprintf('%s: Koopman reconstruction of x, y, z (unit-circle projected)', ...
+                regime_name), 'FontSize', 12, 'FontWeight', 'bold');
 
-        % Figure 2: dominant individual modal contributions
-        figure('Name', 'Limit Cycle — Dominant Koopman Modal Contributions', ...
-               'Position', [220 140 1000 700]);
+        for j = 1:3
+            for ci = 1:3
+                ax = nexttile(tl_ts);
+                plot(ax, t_win, x_true(j, 1:n_plot), 'k-', 'LineWidth', 1.0); hold(ax,'on');
+                plot(ax, t_win, rec_data{ci}(j, 1:n_plot), rec_colors{ci}, 'LineWidth', 1.0);
+                err_val = norm(x_true(j,:) - rec_data{ci}(j,:)) / norm(x_true(j,:));
+                xlabel(ax, 't (s)');
+                ylabel(ax, state_names{j});
+                title(ax, sprintf('%s  |  %s  (err=%.2e)', ...
+                    state_sym{j}, rec_labels{ci}, err_val));
+                if j == 1 && ci == 1
+                    legend(ax, 'Measured', 'Reconstruction', 'Location', 'best');
+                end
+                grid(ax, 'on');
+            end
+        end
 
-        nshow = min(6, numel(selected_10));
+        % ------ Tab 2: Modal Contributions ------
+        nshow   = min(6, numel(selected_10));
+        tab_mc  = uitab('Parent', tg, 'Title', 'Modal Contributions');
+        tl_mc   = tiledlayout(tab_mc, nshow, 3, ...
+                              'Padding', 'compact', 'TileSpacing', 'compact');
+        title(tl_mc, ...
+            sprintf('%s: per-mode contributions to x, y, z (unit-circle projected)', ...
+                regime_name), 'FontSize', 12, 'FontWeight', 'bold');
+
         for ii = 1:nshow
             k = selected_10(ii);
-            subplot(nshow, 1, ii);
-            plot(t, real(state_modes(1, :, k)), 'LineWidth', 1.1);
-            ylabel(sprintf('Mode %d', k));
-            title(sprintf('\\lambda = %.4f %+.4fi', real(lambda(k)), imag(lambda(k))));
-            grid on;
+            for j = 1:3
+                ax = nexttile(tl_mc);
+                plot(ax, t_win, real(state_modes_unit(j, 1:n_plot, k)), 'LineWidth', 1.0);
+                ylabel(ax, state_names{j});
+                if j == 1
+                    title(ax, sprintf('Mode %d  \\lambda=%.3f%+.3fi  |\\lambda|=%.4f', ...
+                        k, real(lambda(k)), imag(lambda(k)), abs(lambda(k))));
+                end
+                if ii == nshow
+                    xlabel(ax, 't (s)');
+                end
+                grid(ax, 'on');
+            end
         end
-        xlabel('t (s)');
+
+        % ------ Tab 3: Phase Plane ------
+        % 3 projections (x-y, x-z, y-z) × 2 rows (measured | top-10 recon).
+        %
+        % For the period-doubled regime we use the f0/2 Koopman eigenfunction
+        % as a loop label.  That eigenfunction is the unique observable that
+        % changes sign exactly once per doubled period — positive on loop A,
+        % negative on loop B.  Coloring measured and reconstructed samples by
+        % that sign (blue = A, red = B) separates the two loops even when they
+        % are geometrically close and the trajectory is undersampled.
+        proj_pairs = [1 2; 1 3; 2 3];
+        proj_xlbls = {'x (V)', 'x (V)', 'y (V)'};
+        proj_ylbls = {'y (V)', 'z (V)', 'z (V)'};
+        proj_names = {'x-y', 'x-z', 'y-z'};
+
+        % Compute loop label and phase-sorted indices for period-doubled only.
+        % The f0/2 eigenfunction's complex time factor a_k * lambda_proj^n
+        % has phase that increases monotonically by angle(lambda_proj) each
+        % step, completing 2pi over one doubled period.  Sorting all loop-A
+        % samples by this phase orders them around the closed orbit, so
+        % connecting them traces a smooth representative curve for that loop.
+        if r == 3
+            [~, ii_half] = min(osc_freqs);
+            k_half       = selected_10(ii_half);
+            loop_sign = real(state_modes_unit(1, :, k_half));   % 1×M
+            loop_A    = loop_sign >= 0;
+
+            fprintf('  Loop label: %d loop-A, %d loop-B samples\n', ...
+                nnz(loop_A), nnz(~loop_A));
+        end
+
+        tab_pp = uitab('Parent', tg, 'Title', 'Phase Plane');
+        tl_pp  = tiledlayout(tab_pp, 2, 3, ...
+                             'Padding', 'compact', 'TileSpacing', 'compact');
+        title(tl_pp, ...
+            sprintf('%s: phase portraits — measured (top) vs top-10 reconstruction (bottom)', ...
+                regime_name), 'FontSize', 11, 'FontWeight', 'bold');
+
+        x_rec_plot = x_rec_unit_10;
+
+        for row = 1:2
+            for col = 1:3
+                ax  = nexttile(tl_pp);
+                pi_ = proj_pairs(col, :);
+                dat = x_true;
+                lbl = 'Measured';
+                if row == 2
+                    dat = x_rec_plot;
+                    lbl = 'Top-10 recon.';
+                end
+
+                if r == 3
+                    plot(ax, dat(pi_(1), loop_A),  dat(pi_(2), loop_A),  'b.', 'MarkerSize', 3);
+                    hold(ax, 'on');
+                    plot(ax, dat(pi_(1), ~loop_A), dat(pi_(2), ~loop_A), 'r.', 'MarkerSize', 3);
+                    if row == 1 && col == 1
+                        legend(ax, 'Loop A', 'Loop B', ...
+                               'Location', 'northwest', 'FontSize', 8);
+                    end
+                else
+                    plot(ax, dat(pi_(1),:), dat(pi_(2),:), 'k-', 'LineWidth', 0.4);
+                end
+
+                xlabel(ax, proj_xlbls{col});
+                ylabel(ax, proj_ylbls{col});
+                title(ax, sprintf('%s — %s', proj_names{col}, lbl));
+                grid(ax, 'on');
+            end
+        end
     end
 
     %% Save data for dictionary sweep
