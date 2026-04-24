@@ -111,6 +111,91 @@ for r = 1:n_regimes
     title(sprintf('%s: phase portrait (measured)', regime_name));
     grid on;
 
+    %% Double-scroll eigenfunction coloring (r=4)
+    % Use a richer Chua-matched dictionary, then evaluate the Koopman
+    % eigenfunctions xi_k(x_n) = w_k^* psi(x_n).  Coloring the attractor by
+    % arg(xi_k) or sign(Re(xi_k)) can reveal hidden coordinates that are not
+    % obvious in the raw state-space trace.
+    if r == 4
+        fprintf('  Building eigenfunction-colored double-scroll plots...\n');
+
+        dict_color = struct('type', 'full', 'degree', 3, ...
+                            'use_rbf', false, 'use_pwl', true);
+        [Psi_X_color, ~] = build_dictionary(X_all, dict_color);
+        [Psi_Y_color, ~] = build_dictionary(Y_all, dict_color);
+        [~, lambda_color, Phi_color] = edmd(Psi_X_color, Psi_Y_color, edmd_opts);
+
+        W_color  = pinv(Phi_color);
+        Xi_color = W_color * Psi_X_color;   % each row = one Koopman eigenfunction over time
+
+        k_color = pick_visual_eigenfunction(lambda_color, Xi_color);
+        xi_vis  = Xi_color(k_color, :);
+        xi_phase = angle(xi_vis);
+        xi_real  = real(xi_vis);
+        xi_sign  = xi_real >= 0;
+
+        fk = abs(angle(lambda_color(k_color))) / (2*pi*dt);
+        fprintf('  Visual eigenfunction mode %d: lambda = %.4f%+.4fi, |lambda| = %.4f, f = %.3f Hz\n', ...
+            k_color, real(lambda_color(k_color)), imag(lambda_color(k_color)), ...
+            abs(lambda_color(k_color)), fk);
+        fprintf('  Sign split: %d positive, %d negative samples\n', ...
+            nnz(xi_sign), nnz(~xi_sign));
+
+        fig_color = figure('Name', sprintf('%s — Eigenfunction Coloring', regime_name), ...
+                           'Position', [120 80 1350 900]);
+        tl_color  = tiledlayout(fig_color, 2, 2, ...
+                                'Padding', 'compact', 'TileSpacing', 'compact');
+        title(tl_color, sprintf(['%s: attractor colored by Koopman eigenfunction ', ...
+            'phase/sign (mode %d, |\\lambda|=%.4f, f=%.3f Hz)'], ...
+            regime_name, k_color, abs(lambda_color(k_color)), fk), ...
+            'FontSize', 12, 'FontWeight', 'bold');
+
+        ax1 = nexttile(tl_color);
+        scatter(ax1, X_all(1, :), X_all(2, :), 8, xi_phase, 'filled');
+        xlabel(ax1, 'x (V)');
+        ylabel(ax1, 'y (V)');
+        title(ax1, 'x-y projection colored by eigenfunction phase');
+        colormap(ax1, hsv);
+        cb1 = colorbar(ax1);
+        cb1.Label.String = 'arg(\xi_k)';
+        grid(ax1, 'on');
+
+        ax2 = nexttile(tl_color);
+        scatter(ax2, X_all(1, :), X_all(3, :), 8, xi_phase, 'filled');
+        xlabel(ax2, 'x (V)');
+        ylabel(ax2, 'z (V)');
+        title(ax2, 'x-z projection colored by eigenfunction phase');
+        colormap(ax2, hsv);
+        cb2 = colorbar(ax2);
+        cb2.Label.String = 'arg(\xi_k)';
+        grid(ax2, 'on');
+
+        ax3 = nexttile(tl_color);
+        plot3(ax3, X_all(1, xi_sign),  X_all(2, xi_sign),  X_all(3, xi_sign), ...
+              '.', 'Color', [0.15 0.35 0.85], 'MarkerSize', 5);
+        hold(ax3, 'on');
+        plot3(ax3, X_all(1, ~xi_sign), X_all(2, ~xi_sign), X_all(3, ~xi_sign), ...
+              '.', 'Color', [0.85 0.25 0.20], 'MarkerSize', 5);
+        xlabel(ax3, 'x (V)');
+        ylabel(ax3, 'y (V)');
+        zlabel(ax3, 'z (V)');
+        title(ax3, '3D attractor split by sign(Re(\xi_k))');
+        legend(ax3, 'Re(\xi_k) > 0', 'Re(\xi_k) < 0', 'Location', 'best');
+        grid(ax3, 'on');
+        view(ax3, 35, 25);
+
+        ax4 = nexttile(tl_color);
+        plot(ax4, t, xi_real, 'b-', 'LineWidth', 0.9);
+        hold(ax4, 'on');
+        plot(ax4, t, imag(xi_vis), 'r-', 'LineWidth', 0.9);
+        yline(ax4, 0, 'k:');
+        xlabel(ax4, 't (s)');
+        ylabel(ax4, '\xi_k');
+        title(ax4, 'Eigenfunction time trace along the trajectory');
+        legend(ax4, 'Re(\xi_k)', 'Im(\xi_k)', 'Location', 'best');
+        grid(ax4, 'on');
+    end
+
     %% Koopman mode reconstruction — limit cycle (r=2) and period-doubled (r=3)
     %
     % MATHEMATICAL BASIS
@@ -629,6 +714,37 @@ for ii = 1:numel(ord_modes)
         break;
     end
 end
+end
+
+function k_best = pick_visual_eigenfunction(lambda, Xi)
+% Pick a nontrivial bounded oscillatory eigenfunction that varies
+% substantially along the trajectory, for visualization purposes.
+tol_imag = 1e-8;
+tol_one  = 1e-3;
+
+osc_mask = abs(imag(lambda)) > tol_imag & abs(lambda) <= 1.05;
+osc_mask = osc_mask & abs(lambda - 1) > tol_one;
+
+score = -inf(size(lambda));
+for k = 1:numel(lambda)
+    if osc_mask(k)
+        score(k) = abs(lambda(k)) * std(real(Xi(k, :)));
+    end
+end
+
+if any(isfinite(score))
+    [~, k_best] = max(score);
+    return;
+end
+
+bounded_mask = abs(lambda) <= 1.05 & abs(lambda - 1) > tol_one;
+for k = 1:numel(lambda)
+    if bounded_mask(k)
+        score(k) = abs(lambda(k)) * std(real(Xi(k, :)));
+    end
+end
+
+[~, k_best] = max(score);
 end
 
 function data = load_chua_csv(filepath)

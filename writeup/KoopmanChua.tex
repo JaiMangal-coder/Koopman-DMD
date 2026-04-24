@@ -1,0 +1,264 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage[numbers]{natbib}
+
+\title{Koopman Analysis of Chua's Circuit with EDMD}
+\author{Nonlinear Dynamics and Chaos Project}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The Koopman operator provides a way to study nonlinear dynamical systems through a linear, but generally infinite-dimensional, perspective \citep{koopman1931}. Instead of evolving the state directly, the Koopman framework evolves observables of the state. This is appealing in nonlinear dynamics because spectral ideas such as eigenvalues, eigenfunctions, and modes can then be used even when the original system is nonlinear. In this project we first introduce the Koopman operator and show a simple example in which a nonlinear system can be made closed by augmenting the state with one nonlinear observable. We then briefly describe Extended Dynamic Mode Decomposition (EDMD), which approximates the Koopman operator from data \citep{williams2015}. In the second half of the paper we apply EDMD to experimental data from Chua's circuit measured using an Arduino R4 Minima. We analyze four regimes --- fixed point, limit cycle, period-doubled oscillation, and double-scroll chaos --- and use Koopman eigenvalues, reconstructions, dictionary sweeps, and eigenfunction coloring to show what the Koopman viewpoint reveals about the route to chaos.
+\end{abstract}
+
+\section{Introduction}
+One of the recurring themes in nonlinear dynamics is that even simple-looking differential equations can produce behavior that is difficult to understand directly in state space. Linear systems are much easier to analyze: eigenvalues describe growth, decay, and oscillation, and solutions can be decomposed into modal pieces. Nonlinear systems do not generally permit such a direct spectral analysis in their original coordinates.
+
+The Koopman operator offers a different viewpoint \citep{koopman1931}. Rather than seeking a linear description of the state variables themselves, it studies how \emph{observables} evolve under the dynamics. Although the underlying system may be nonlinear, the Koopman operator acting on observables is linear. This move transfers some of the tools of linear algebra into nonlinear dynamics, provided one is willing to work in a larger space of functions.
+
+This paper has two goals. First, we present the basic Koopman idea in a simple setting where the lifted system closes exactly. Second, we apply a data-driven approximation of Koopman theory to Chua's circuit, a canonical nonlinear electronic system that exhibits a progression from fixed-point behavior to periodic motion, period doubling, and chaos.
+
+\section{Koopman Background}
+
+\subsection{The Koopman Operator}
+Consider a discrete-time dynamical system
+\begin{equation}
+    x_{n+1} = F(x_n),
+\end{equation}
+where $x_n \in \mathbb{R}^d$. Instead of following the state directly, we consider an observable $g : \mathbb{R}^d \to \mathbb{C}$. The Koopman operator $\mathcal{K}$ acts on observables by composition with the dynamics:
+\begin{equation}
+    (\mathcal{K}g)(x) = g(F(x)).
+\end{equation}
+This operator is linear, since for observables $g_1,g_2$ and scalars $a,b$,
+\begin{equation}
+    \mathcal{K}(a g_1 + b g_2) = a \mathcal{K}g_1 + b \mathcal{K}g_2.
+\end{equation}
+
+The key point is that the nonlinearity of $F$ has not disappeared; rather, it has been moved into the function space on which $\mathcal{K}$ acts. In general this space is infinite-dimensional. The benefit is that if we can identify useful Koopman eigenfunctions $\xi_k$, satisfying
+\begin{equation}
+    \mathcal{K}\xi_k = \lambda_k \xi_k,
+\end{equation}
+then each eigenfunction evolves by a simple scalar multiplication:
+\begin{equation}
+    \xi_k(x_{n+1}) = \lambda_k \xi_k(x_n).
+\end{equation}
+This gives a linear evolution law for quantities derived from the nonlinear state.
+
+\subsection{A Simple Closed Koopman Representation}
+To make the Koopman idea concrete, consider the scalar nonlinear system
+\begin{equation}
+    x_{n+1} = a x_n + b x_n^2.
+\end{equation}
+In the original state variable $x_n$, this system is nonlinear because of the $x_n^2$ term. However, we can try to enlarge the observable set so that the evolution becomes linear in the enlarged coordinates.
+
+Let
+\begin{equation}
+    y_n = x_n^2.
+\end{equation}
+If we only augment by $y_n$, then
+\begin{equation}
+    x_{n+1} = a x_n + b y_n.
+\end{equation}
+This makes the first equation linear in the variables $(x_n,y_n)$. The question is whether the dynamics for $y_n$ also close in this same set of variables. In general,
+\begin{align}
+    y_{n+1}
+    &= x_{n+1}^2 \\
+    &= (a x_n + b x_n^2)^2 \\
+    &= a^2 x_n^2 + 2ab x_n^3 + b^2 x_n^4.
+\end{align}
+This expression involves $x_n^3$ and $x_n^4$, so for a generic map the lifted system does \emph{not} close with only the observables $x$ and $x^2$. Instead, one would need to continue enlarging the dictionary, typically leading to an infinite hierarchy.
+
+There is, however, an important class of examples in which a single nonlinear observable does close the system. Consider instead the continuous-time system
+\begin{equation}
+    \dot{x} = \mu x, \qquad \dot{y} = \lambda (y - x^2),
+\end{equation}
+or equivalently a scalar system in which the nonlinearity appears through a dedicated observable. Define the observable
+\begin{equation}
+    g_1(x,y) = x, \qquad g_2(x,y) = y.
+\end{equation}
+Then the dynamics of $(x,y)$ are already linear in $x$ and $y$ except for the coupling through $x^2$. A more standard exactly closed example is
+\begin{equation}
+    \dot{x}_1 = \mu x_1, \qquad \dot{x}_2 = \lambda (x_2 - x_1^2),
+\end{equation}
+for which the augmented observable vector
+\begin{equation}
+    \psi(x) = \begin{bmatrix} x_1 \\ x_2 \\ x_1^2 \end{bmatrix}
+\end{equation}
+obeys a closed linear system. Indeed,
+\begin{align}
+    \frac{d}{dt} x_1 &= \mu x_1, \\
+    \frac{d}{dt} x_2 &= \lambda x_2 - \lambda x_1^2, \\
+    \frac{d}{dt}(x_1^2) &= 2 x_1 \dot{x}_1 = 2\mu x_1^2.
+\end{align}
+Therefore
+\begin{equation}
+    \frac{d}{dt}
+    \begin{bmatrix}
+        x_1 \\ x_2 \\ x_1^2
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        \mu & 0 & 0 \\
+        0 & \lambda & -\lambda \\
+        0 & 0 & 2\mu
+    \end{bmatrix}
+    \begin{bmatrix}
+        x_1 \\ x_2 \\ x_1^2
+    \end{bmatrix}.
+\end{equation}
+This is an exact finite-dimensional Koopman-invariant subspace. The example is useful because it shows what one hopes to achieve more generally: by choosing the right observables, nonlinear evolution in state space can become linear evolution in a lifted space.
+
+This example also clarifies an important point. Koopman theory does not say that every nonlinear system has a low-dimensional exact linear representation. Rather, it says that nonlinear systems can be studied through linear evolution of observables, and in favorable cases a finite dictionary of observables may capture a useful approximation.
+
+\subsection{Koopman Modes, Eigenvalues, and Interpretation}
+If a vector of observables $\psi(x)$ can be expanded in terms of Koopman eigenfunctions, then the dynamics take the form of a modal decomposition. In discrete time, one may write schematically
+\begin{equation}
+    \psi(x_n) \approx \sum_{k} \lambda_k^n \, \xi_k(x_0) \, \phi_k,
+\end{equation}
+where $\lambda_k$ are Koopman eigenvalues, $\xi_k$ are eigenfunctions, and $\phi_k$ are mode vectors. The eigenvalues indicate decay, growth, or oscillation. Complex conjugate eigenvalue pairs correspond to oscillatory behavior, and for periodic dynamics one expects eigenvalues near the unit circle.
+
+This spectral language is especially attractive in nonlinear dynamics because it lets us discuss fixed points, limit cycles, and more complicated attractors using a common linear vocabulary, even when the original equations are nonlinear.
+
+\subsection{Brief Description of EDMD}
+In practice, one rarely knows the Koopman operator exactly. Instead, one approximates it from data. Extended Dynamic Mode Decomposition (EDMD) starts from snapshot pairs \citep{williams2015}
+\begin{equation}
+    (x_1,y_1), (x_2,y_2), \dots, (x_M,y_M),
+\end{equation}
+where $y_m$ is the state one timestep after $x_m$. One then chooses a dictionary of observables
+\begin{equation}
+    \psi(x) = \begin{bmatrix}
+        \psi_1(x) & \psi_2(x) & \cdots & \psi_N(x)
+    \end{bmatrix}^{\!\top}
+\end{equation}
+and forms the lifted data matrices
+\begin{equation}
+    \Psi_X = \begin{bmatrix}
+        \psi(x_1) & \psi(x_2) & \cdots & \psi(x_M)
+    \end{bmatrix},
+    \qquad
+    \Psi_Y = \begin{bmatrix}
+        \psi(y_1) & \psi(y_2) & \cdots & \psi(y_M)
+    \end{bmatrix}.
+\end{equation}
+EDMD then computes a matrix $K$ such that
+\begin{equation}
+    \Psi_Y \approx K \Psi_X.
+\end{equation}
+In our implementation this approximation is obtained by least squares with truncated SVD regularization. The eigenvalues and eigenvectors of $K$ approximate Koopman spectral data. The quality of the approximation depends heavily on the chosen dictionary: if the observables reflect the structure of the nonlinear system, the lifted linear model can be much more informative.
+
+\section{Experimental System: Chua's Circuit}
+
+\subsection{Why Chua's Circuit}
+Chua's circuit is a standard example in nonlinear dynamics because it exhibits several qualitatively different behaviors as parameters are varied. In particular, it provides a physically accessible route from simple behavior to chaos. This makes it a natural test case for the Koopman viewpoint: we can ask how the spectral picture changes as the system passes through a fixed point, a stable oscillation, a period-doubled oscillation, and finally the chaotic double scroll.
+
+\subsection{Data Collection}
+The experimental data in this project were collected from Chua's circuit using an Arduino R4 Minima. Chua's circuit is one of the canonical low-dimensional electronic systems exhibiting chaos and was developed as a simple electronic realization of rich nonlinear dynamics \citep{chua1986,matsumoto1985}. The Arduino was used to sample three measured signals, denoted here by $x$, $y$, and $z$, corresponding to the circuit state coordinates used throughout the analysis. For each regime, $5000$ samples were recorded:
+\begin{itemize}[leftmargin=1.5em]
+    \item fixed point,
+    \item limit cycle,
+    \item period-doubled oscillation,
+    \item double-scroll chaotic regime.
+\end{itemize}
+These measurements were saved as time series and then organized into snapshot pairs for EDMD.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{2.2in}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder for a figure of the Chua circuit and measurement setup.}
+    \label{fig:circuit}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{2.4in}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder for measured time series and/or phase portraits from the four experimental regimes.}
+    \label{fig:measured-data}
+\end{figure}
+
+\section{EDMD Analysis of the Four Regimes}
+
+\subsection{Choice of Dictionary}
+Because EDMD depends strongly on the observable dictionary, part of the analysis focused on comparing different families of observables. The code includes linear, polynomial, radial basis function, and Chua-matched piecewise-linear observables. The Chua-specific observables are motivated by the piecewise-linear nonlinearity in the circuit, so they are expected to capture the dynamics more efficiently than a completely generic basis. This follows the broader EDMD philosophy that approximation quality depends not only on the data, but on whether the chosen observables are rich enough to represent the important Koopman-invariant structures \citep{williams2015}.
+
+This comparison is important conceptually. Koopman theory is not a black-box replacement for nonlinear dynamics. Rather, it is a framework in which physical insight enters through the observables one chooses to evolve.
+
+\subsection{Dictionary Sweep: Accuracy Versus Cost}
+To quantify the effect of dictionary choice, we performed a sweep over dictionary families and sizes and measured the relative one-step error in lifted space together with computation time. The expected trend is that richer dictionaries often reduce approximation error, but they also increase computational cost and can introduce conditioning issues. This tradeoff is visible in the implementation and is an important practical lesson of EDMD.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{2.5in}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder for dictionary sweep results showing how improved observable sets can reduce relative error while increasing computation time.}
+    \label{fig:dictionary-sweep}
+\end{figure}
+
+\subsection{Koopman Eigenvalues Across Regimes}
+For each regime, EDMD produces a finite-dimensional Koopman matrix whose eigenvalues approximate the spectral behavior of the system. These eigenvalues are especially informative when compared across regimes.
+
+For a fixed point, one expects non-oscillatory behavior to dominate, so the spectrum should be concentrated near the real axis. For a stable limit cycle, complex conjugate pairs are expected because oscillation in real-valued systems is represented by conjugate modes. If the oscillation persists without decay, the corresponding eigenvalues should lie near the unit circle in discrete time. For a period-doubled orbit, one expects new spectral content associated with the subharmonic frequency, so additional conjugate pairs should appear at lower frequencies. In the chaotic double-scroll regime, the spectrum is generally more complicated, but one still hopes to identify coherent oscillatory structure through leading eigenvalues and eigenfunctions.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{2.5in}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder for the Koopman eigenvalues computed in each regime. Complex conjugate pairs are expected for oscillatory dynamics, especially in the limit-cycle and period-doubled regimes.}
+    \label{fig:eigenvalues}
+\end{figure}
+
+\subsection{Period-Doubled Reconstruction from Koopman Modes}
+One of the strongest demonstrations in this project is the Koopman reconstruction of the period-doubled regime. The analysis script identifies bounded modes and reconstructs the measured state from selected Koopman components. In the period-doubled case, the script deliberately switches to a richer polynomial dictionary for reconstruction because the smaller piecewise-linear dictionary is not expressive enough to capture the half-frequency eigenfunction associated with the doubled orbit.
+
+This is a particularly instructive example because it shows how the spectral picture reflects the nonlinear bifurcation. The dominant oscillatory content is no longer just the original fundamental frequency. Instead, the reconstruction reveals the importance of the subharmonic mode, corresponding to the fact that the system now repeats only after two passes rather than one. In the code, the selected modes are also projected onto the unit circle during reconstruction to remove artificial numerical decay of sustained oscillations. This makes the physical interpretation of the periodic orbit clearer.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{2.8in}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder for the Koopman mode reconstruction of the period-doubled regime, together with an explanation of the mode selection and unit-circle projection implemented in \texttt{run\_chua.m}.}
+    \label{fig:period-doubled-reconstruction}
+\end{figure}
+
+\subsection{Double Scroll and Eigenfunction Coloring}
+The chaotic double-scroll regime is the most visually striking part of Chua's circuit, but it is also where the Koopman viewpoint becomes especially insightful. In raw state space, the trajectory appears tangled and difficult to summarize. However, a Koopman eigenfunction can act as a hidden coordinate that organizes the attractor.
+
+In our analysis, a nontrivial bounded eigenfunction was evaluated along the measured double-scroll trajectory. The attractor was then colored using both the phase of this eigenfunction and the sign of its real part. The resulting visualization showed that the sign of the eigenfunction separated the left and right lobes of the double scroll, while the phase organized motion within each lobe into repeating colored loops. This is exactly the kind of insight that is hard to obtain from the raw coordinates alone: the eigenfunction behaves like a dynamically meaningful coordinate on the chaotic attractor.
+
+If $\xi_k$ denotes a Koopman eigenfunction, then in the ideal Koopman picture it satisfies
+\begin{equation}
+    \xi_k(x_{n+1}) \approx \lambda_k \xi_k(x_n).
+\end{equation}
+Thus, even though the state itself evolves chaotically, the eigenfunction evolves in a much simpler way. In the EDMD approximation, the eigenfunction values are computed from the left eigenvectors of the finite Koopman matrix acting on the lifted observable data. Coloring the attractor by $\arg(\xi_k)$ or by $\mathrm{Re}(\xi_k)$ then provides a geometric interpretation of this hidden linear coordinate.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\rule{0pt}{2.8in}\rule{0.9\textwidth}{0pt}}
+    \caption{Placeholder for the double-scroll eigenfunction coloring. The sign of $\mathrm{Re}(\xi_k)$ separates the two lobes, while the phase of $\xi_k$ organizes circulation within each lobe.}
+    \label{fig:double-scroll-coloring}
+\end{figure}
+
+\section{Discussion}
+Several points emerge from this project. First, the Koopman framework provides a natural spectral language for nonlinear dynamics. Even though the systems under study are nonlinear, their behavior can be described through eigenvalues, eigenfunctions, and modes once appropriate observables are chosen.
+
+Second, dictionary choice is central. The dictionary sweep shows that better observables can substantially improve the EDMD approximation, but not for free: richer dictionaries increase computation time and can worsen numerical conditioning. This is both a practical issue and a conceptual one, since it emphasizes that Koopman analysis depends on choosing observables that reflect the underlying physics.
+
+Third, the Chua circuit data illustrate a meaningful progression through the route to chaos. The fixed-point regime is spectrally simple, the limit cycle exhibits conjugate-pair structure associated with sustained oscillation, the period-doubled regime reveals subharmonic content, and the double-scroll regime shows that Koopman eigenfunctions can still uncover coherent structure even in chaos.
+
+\section{Conclusion}
+This project used the Koopman operator as a bridge between linear spectral ideas and nonlinear dynamical behavior. A simple background example showed how augmenting the observable space can produce a closed linear description when the right nonlinear term is included. EDMD then provided a practical way to approximate Koopman spectral quantities from experimental data \citep{koopman1931,williams2015}.
+
+Applied to Chua's circuit, this framework gave a unified way to study four regimes measured with an Arduino R4 Minima: fixed point, limit cycle, period doubling, and double-scroll chaos. The most compelling result is that the Koopman viewpoint does not merely fit the data; it organizes the behavior. In the periodic regimes it yields interpretable oscillatory modes, and in the chaotic regime it produces eigenfunctions that reveal hidden coordinates on the attractor. This makes the Koopman approach especially valuable for a nonlinear dynamics setting, where the central challenge is often not only to simulate nonlinear motion, but to understand its structure.
+
+\bibliographystyle{plainnat}
+\bibliography{bib}
+
+\end{document}
