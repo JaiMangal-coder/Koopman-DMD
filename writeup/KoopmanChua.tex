@@ -57,38 +57,7 @@ then each eigenfunction evolves by a simple scalar multiplication:
 This gives a linear evolution law for quantities derived from the nonlinear state.
 
 \subsection{A Simple Closed Koopman Representation}
-To make the Koopman idea concrete, consider the scalar nonlinear system
-\begin{equation}
-    x_{n+1} = a x_n + b x_n^2.
-\end{equation}
-In the original state variable $x_n$, this system is nonlinear because of the $x_n^2$ term. However, we can try to enlarge the observable set so that the evolution becomes linear in the enlarged coordinates.
-
-Let
-\begin{equation}
-    y_n = x_n^2.
-\end{equation}
-If we only augment by $y_n$, then
-\begin{equation}
-    x_{n+1} = a x_n + b y_n.
-\end{equation}
-This makes the first equation linear in the variables $(x_n,y_n)$. The question is whether the dynamics for $y_n$ also close in this same set of variables. In general,
-\begin{align}
-    y_{n+1}
-    &= x_{n+1}^2 \\
-    &= (a x_n + b x_n^2)^2 \\
-    &= a^2 x_n^2 + 2ab x_n^3 + b^2 x_n^4.
-\end{align}
-This expression involves $x_n^3$ and $x_n^4$, so for a generic map the lifted system does \emph{not} close with only the observables $x$ and $x^2$. Instead, one would need to continue enlarging the dictionary, typically leading to an infinite hierarchy.
-
-There is, however, an important class of examples in which a single nonlinear observable does close the system. Consider instead the continuous-time system
-\begin{equation}
-    \dot{x} = \mu x, \qquad \dot{y} = \lambda (y - x^2),
-\end{equation}
-or equivalently a scalar system in which the nonlinearity appears through a dedicated observable. Define the observable
-\begin{equation}
-    g_1(x,y) = x, \qquad g_2(x,y) = y.
-\end{equation}
-Then the dynamics of $(x,y)$ are already linear in $x$ and $y$ except for the coupling through $x^2$. A more standard exactly closed example is
+To make the Koopman idea concrete, consider the continuous-time nonlinear system
 \begin{equation}
     \dot{x}_1 = \mu x_1, \qquad \dot{x}_2 = \lambda (x_2 - x_1^2),
 \end{equation}
@@ -118,7 +87,7 @@ Therefore
         x_1 \\ x_2 \\ x_1^2
     \end{bmatrix}.
 \end{equation}
-This is an exact finite-dimensional Koopman-invariant subspace. The example is useful because it shows what one hopes to achieve more generally: by choosing the right observables, nonlinear evolution in state space can become linear evolution in a lifted space.
+This is an exact finite-dimensional Koopman-invariant subspace. Although the original system is nonlinear in the state variables because of the $x_1^2$ term, the lifted observable vector evolves linearly. The example is useful because it shows what one hopes to achieve more generally: by choosing the right observables, nonlinear evolution in state space can become linear evolution in a lifted space.
 
 This example also clarifies an important point. Koopman theory does not say that every nonlinear system has a low-dimensional exact linear representation. Rather, it says that nonlinear systems can be studied through linear evolution of observables, and in favorable cases a finite dictionary of observables may capture a useful approximation.
 
