@@ -15,6 +15,13 @@
 \author{Nonlinear Dynamics and Chaos Project}
 \date{}
 
+% --- Convenience macros ---
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Koop}{\mathcal{K}}
+\newcommand{\Hil}{\mathcal{F}}
+
 \begin{document}
 
 \maketitle
@@ -101,26 +108,26 @@ where $\lambda_k$ are Koopman eigenvalues, $\xi_k$ are eigenfunctions, and $\phi
 This spectral language is especially attractive in nonlinear dynamics because it lets us discuss fixed points, limit cycles, and more complicated attractors using a common linear vocabulary, even when the original equations are nonlinear.
 
 \subsection{Brief Description of EDMD}
-In practice, one rarely knows the Koopman operator exactly. Instead, one approximates it from data. Extended Dynamic Mode Decomposition (EDMD) starts from snapshot pairs \citep{williams2015}
+Since the Koopman Operator is infinite-dimensional, practical computation requires a
+finite-dimensional approximation. EDMD~\cite{williams2015} works in a
+\emph{dictionary} of $N_\psi$ observables
 \begin{equation}
-    (x_1,y_1), (x_2,y_2), \dots, (x_M,y_M),
+    \boldsymbol{\psi}(\mathbf{x}) =
+    \begin{bmatrix} \psi_1(\mathbf{x}) & \psi_2(\mathbf{x}) & \cdots &
+    \psi_{N_\psi}(\mathbf{x}) \end{bmatrix}^\top \in \C^{N_\psi}.
+    \label{eq:dict}
 \end{equation}
-where $y_m$ is the state one timestep after $x_m$. One then chooses a dictionary of observables
+The lifted snapshot matrices are
 \begin{equation}
-    \psi(x) = \begin{bmatrix}
-        \psi_1(x) & \psi_2(x) & \cdots & \psi_N(x)
-    \end{bmatrix}^{\!\top}
-\end{equation}
-and forms the lifted data matrices
-\begin{equation}
-    \Psi_X = \begin{bmatrix}
-        \psi(x_1) & \psi(x_2) & \cdots & \psi(x_M)
-    \end{bmatrix},
+    \Psi_X = \begin{bmatrix} \boldsymbol{\psi}(\mathbf{x}_1) & \cdots &
+    \boldsymbol{\psi}(\mathbf{x}_M) \end{bmatrix} \in \C^{N_\psi \times M},
     \qquad
-    \Psi_Y = \begin{bmatrix}
-        \psi(y_1) & \psi(y_2) & \cdots & \psi(y_M)
-    \end{bmatrix}.
+    \Psi_Y = \begin{bmatrix} \boldsymbol{\psi}(\mathbf{x}_2) & \cdots &
+    \boldsymbol{\psi}(\mathbf{x}_{M+1}) \end{bmatrix} \in \C^{N_\psi \times M},
+    \label{eq:snapshots}
 \end{equation}
+where $(\mathbf{x}_k, \mathbf{x}_{k+1})$ are consecutive snapshot pairs from
+one or more trajectories.
 EDMD then computes a matrix $K$ such that
 \begin{equation}
     \Psi_Y \approx K \Psi_X.
