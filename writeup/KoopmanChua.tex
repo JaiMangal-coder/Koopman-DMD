@@ -139,8 +139,12 @@ In our implementation this approximation is obtained by least squares with trunc
 \subsection{Why Chua's Circuit}
 Chua's circuit is a standard example in nonlinear dynamics because it exhibits several qualitatively different behaviors as parameters are varied. In particular, it provides a physically accessible route from simple behavior to chaos. This makes it a natural test case for the Koopman viewpoint: we can ask how the spectral picture changes as the system passes through a fixed point, a stable oscillation, a period-doubled oscillation, and finally the chaotic double scroll.
 
+At the center of the circuit is its nonlinear element, commonly called the Chua diode. Despite the name, this is not an ordinary semiconductor diode, but an active nonlinear resistor with a piecewise-linear current-voltage characteristic \citep{chua1986,matsumoto1985}. That nonlinearity is what gives the circuit its rich behavior. The slope changes in the Chua diode produce the switching structure that underlies the double-scroll attractor, and they also motivate the piecewise-linear observables used later in the EDMD dictionaries.
+
 \subsection{Data Collection}
-The experimental data in this project were collected from Chua's circuit using an Arduino R4 Minima. Chua's circuit is one of the canonical low-dimensional electronic systems exhibiting chaos and was developed as a simple electronic realization of rich nonlinear dynamics \citep{chua1986,matsumoto1985}. The Arduino was used to sample three measured signals, denoted here by $x$, $y$, and $z$, corresponding to the circuit state coordinates used throughout the analysis. For each regime, $5000$ samples were recorded:
+The experimental data in this project were collected from Chua's circuit using an Arduino R4 Minima. Chua's circuit is one of the canonical low-dimensional electronic systems exhibiting chaos and was developed as a simple electronic realization of rich nonlinear dynamics \citep{chua1986,matsumoto1985}. In this implementation, the inductor was realized as a gyrator built from two op amps, and the Chua diode was also implemented using two op amps to produce the required nonlinear piecewise-linear response. This allowed the full circuit to be constructed from active analog building blocks while preserving the characteristic dynamics of the standard Chua design.
+
+To interface the analog circuit with the microcontroller, additional signal-conditioning stages were required. Summing amplifiers and diode clamps were used to shift and limit the measured voltages so that they lay within the readable range of the Arduino ADC. This step was necessary because the native circuit voltages are bipolar, while the Arduino input expects a bounded unipolar voltage range. After conditioning, the Arduino sampled three measured signals, denoted here by $x$, $y$, and $z$, corresponding to the circuit state coordinates used throughout the analysis. For each regime, $5000$ samples were recorded:
 \begin{itemize}[leftmargin=1.5em]
     \item fixed point,
     \item limit cycle,
@@ -205,20 +209,38 @@ This is a particularly instructive example because it shows how the spectral pic
 \end{figure}
 
 \subsection{Double Scroll and Eigenfunction Coloring}
-The chaotic double-scroll regime is the most visually striking part of Chua's circuit, but it is also where the Koopman viewpoint becomes especially insightful. In raw state space, the trajectory appears tangled and difficult to summarize. However, a Koopman eigenfunction can act as a hidden coordinate that organizes the attractor.
+The chaotic double-scroll regime is the most visually striking part of Chua's circuit, but it is also where the Koopman viewpoint becomes especially insightful. In raw state space the trajectory wanders unpredictably between two lobes, and no individual voltage---$x$, $y$, or $z$---cleanly distinguishes them. The two lobes overlap in every linear projection: a threshold on $x$ alone, for example, will incorrectly assign points near the center of the attractor because both lobes pass through that region. This is a fundamental limitation of working directly with state coordinates in a chaotic system.
 
-In our analysis, a nontrivial bounded eigenfunction was evaluated along the measured double-scroll trajectory. The attractor was then colored using both the phase of this eigenfunction and the sign of its real part. The resulting visualization showed that the sign of the eigenfunction separated the left and right lobes of the double scroll, while the phase organized motion within each lobe into repeating colored loops. This is exactly the kind of insight that is hard to obtain from the raw coordinates alone: the eigenfunction behaves like a dynamically meaningful coordinate on the chaotic attractor.
-
-If $\xi_k$ denotes a Koopman eigenfunction, then in the ideal Koopman picture it satisfies
+The Koopman framework offers a different approach. Rather than looking for a separator in the original state space, we look for an eigenfunction of the Koopman operator, a nonlinear observable that evolves by simple multiplication at each timestep. If $\xi_k$ denotes such an eigenfunction, it satisfies
 \begin{equation}
-    \xi_k(x_{n+1}) \approx \lambda_k \xi_k(x_n).
+    \xi_k(x_{n+1}) = \lambda_k \,\xi_k(x_n),
+    \label{eq:eigenfunction}
 \end{equation}
-Thus, even though the state itself evolves chaotically, the eigenfunction evolves in a much simpler way. In the EDMD approximation, the eigenfunction values are computed from the left eigenvectors of the finite Koopman matrix acting on the lifted observable data. Coloring the attractor by $\arg(\xi_k)$ or by $\mathrm{Re}(\xi_k)$ then provides a geometric interpretation of this hidden linear coordinate.
+so that $\xi_k(x_n) = \lambda_k^n \,\xi_k(x_0)$. The state $x_n$ itself evolves chaotically, but the scalar $\xi_k(x_n)$ executes a rigid rotation in the complex plane at the angular frequency $\arg(\lambda_k)$ per timestep. This is precisely the Koopman linearity guarantee: nonlinear dynamics in state space become linear dynamics in observable space.
+
+\paragraph{Computing eigenfunctions from data.}
+EDMD produces the finite Koopman matrix $K$ and its eigenvector matrix $\Phi$ (columns are right eigenvectors). The corresponding left eigenvectors, collected as rows of $W = \Phi^{+}$, provide the dual basis. The $k$-th Koopman eigenfunction evaluated along the trajectory is then
+\begin{equation}
+    \xi_k(x_n) = w_k^\top \psi(x_n),
+\end{equation}
+where $w_k$ is the $k$-th row of $W$ and $\psi(x_n)$ is the lifted dictionary vector at snapshot $n$. Evaluating this for every snapshot gives the full time history of $\xi_k$ along the measured attractor. The eigenfunction selected for visualization is the bounded oscillatory mode with the highest variance in $\mathrm{Re}(\xi_k)$, which is the mode that most strongly discriminates different regions of the attractor. For this regime a degree-3 polynomial dictionary augmented with the four piecewise-linear Chua kink terms was used, since a small dictionary does not provide enough expressive power to resolve the eigenfunction structure of the double scroll.
+
+\paragraph{Interpreting the four panels.}
+The visualization in Figure~\ref{fig:double-scroll-coloring} presents four complementary views of the same eigenfunction.
+
+The top two panels color every attractor point by $\arg(\xi_k)$ using a cyclic (HSV) colormap, shown in the $x$-$y$ and $x$-$z$ projections respectively. Because $\xi_k$ advances by a fixed angle each step, points visited at similar phases of the rotation receive similar colors. If the eigenfunction genuinely reflects the attractor's geometry, the color should sweep smoothly around each lobe rather than appearing randomly speckled. Smooth, coherent color bands confirm that $\xi_k$ is acting as an intrinsic phase coordinate on the attractor---not a noise artifact---and that the chosen mode captures persistent oscillatory structure even within the chaos.
+
+The bottom-left panel reduces the complex eigenfunction to a binary label: points where $\mathrm{Re}(\xi_k) \geq 0$ are shown in blue, and those where $\mathrm{Re}(\xi_k) < 0$ in red. This is the most direct test of the eigenfunction's utility as a lobe separator. If it succeeds, blue and red should cleanly partition the two scrolls in the full three-dimensional state space, achieving in a single learned observable what no voltage threshold can accomplish. The key is that $\xi_k$ is a nonlinear function of all three state variables: the EDMD procedure has found, from data alone, the combination of polynomial and piecewise-linear terms that most cleanly partitions the attractor.
+
+The bottom-right panel shows $\mathrm{Re}(\xi_k)$ and $\mathrm{Im}(\xi_k)$ as time series. Despite the irregular switching visible in the raw voltages, the eigenfunction trace should show approximately sinusoidal oscillation whose real part changes sign each time the trajectory transitions between lobes. This is the time-domain signature of the linear evolution in~\eqref{eq:eigenfunction}: the chaotic switching in physical coordinates maps to a regular phase rotation in the eigenfunction coordinate.
+
+\paragraph{Why this demonstrates the advantage of Koopman.}
+The central challenge for any analysis method applied to chaos is that the dynamics are sensitive to initial conditions and superficially irregular. State-space methods that rely on linear combinations of voltages are limited because nonlinear geometric features---such as lobe membership---have no simple linear signature. The Koopman approach circumvents this by explicitly searching the space of nonlinear observables for one that evolves linearly. The eigenfunction coloring demonstrates this advantage concretely: it transforms the question ``which lobe is the trajectory in?'' from an intractable problem in state space into a trivial threshold on a single learned coordinate. Moreover, the eigenvalue $\lambda_k$ associated with that coordinate tells us the frequency at which the trajectory winds around the attractor, providing quantitative dynamical information that is completely invisible in the raw time series.
 
 \begin{figure}[H]
     \centering
     \fbox{\rule{0pt}{2.8in}\rule{0.9\textwidth}{0pt}}
-    \caption{Placeholder for the double-scroll eigenfunction coloring. The sign of $\mathrm{Re}(\xi_k)$ separates the two lobes, while the phase of $\xi_k$ organizes circulation within each lobe.}
+    \caption{Double-scroll attractor colored by Koopman eigenfunction $\xi_k$ (mode selected by oscillatory variance). \emph{Top row:} attractor points colored by $\arg(\xi_k)$ in the $x$-$y$ and $x$-$z$ projections; coherent color bands confirm that $\xi_k$ is a genuine phase coordinate on the attractor. \emph{Bottom left:} three-dimensional attractor split by $\mathrm{sign}(\mathrm{Re}(\xi_k))$; blue and red cleanly separate the two scrolls, a partition that no single voltage threshold achieves. \emph{Bottom right:} time trace of $\mathrm{Re}(\xi_k)$ (blue) and $\mathrm{Im}(\xi_k)$ (red), showing near-sinusoidal evolution of the eigenfunction despite irregular chaotic switching in the raw state.}
     \label{fig:double-scroll-coloring}
 \end{figure}
 

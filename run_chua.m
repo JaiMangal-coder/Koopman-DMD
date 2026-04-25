@@ -32,6 +32,14 @@ edmd_opts.tol    = 1e-6;
 X_datasets = cell(n_regimes, 1);
 fig_eig    = figure('Name', 'Chua: Koopman Eigenvalues by Regime');
 
+%% Phase portrait figure (2x2, filled inside the loop)
+fig_phase = figure('Name', 'Chua: Phase Portraits — Measured Signals', ...
+                   'Position', [150 150 900 700]);
+tl_phase  = tiledlayout(fig_phase, 2, 2, ...
+                        'Padding', 'compact', 'TileSpacing', 'compact');
+title(tl_phase, 'Chua Circuit Phase Portraits — Measured Signals', ...
+      'FontSize', 13, 'FontWeight', 'bold');
+
 %% Process each regime
 for r = 1:n_regimes
     csv_file    = regimes{r, 1};
@@ -103,13 +111,15 @@ for r = 1:n_regimes
         grid on;
     end
 
-    %% Phase portrait (x vs y)
-    figure('Name', sprintf('Regime %d: %s — phase portrait', r, regime_name));
-    plot(X_all(1, :), X_all(2, :), 'b-', 'LineWidth', 1.0);
-    xlabel('x (V)');
-    ylabel('y (V)');
-    title(sprintf('%s: phase portrait (measured)', regime_name));
-    grid on;
+    %% Phase portrait (x vs y) — add tile to the shared 2×2 figure
+    ax_phase = nexttile(tl_phase, r);
+    plot(ax_phase, X_all(1, :), X_all(2, :), 'b-', 'LineWidth', 0.8);
+    xlabel(ax_phase, 'x (V)', 'FontSize', 10);
+    ylabel(ax_phase, 'y (V)', 'FontSize', 10);
+    title(ax_phase, regime_name, 'FontSize', 11, 'FontWeight', 'bold');
+    grid(ax_phase, 'on');
+    box(ax_phase, 'on');
+    set(ax_phase, 'FontSize', 10);
 
     %% Double-scroll eigenfunction coloring (r=4)
     % Use a richer Chua-matched dictionary, then evaluate the Koopman
@@ -571,8 +581,17 @@ sweep_time = zeros(n_regimes, N_cfgs);   % milliseconds
 fprintf('\n=== Dictionary Sweep ===\n');
 for r = 1:n_regimes
     Xd = X_datasets{r};
-    Xs = Xd(:, 1:end-1);
-    Ys = Xd(:, 2:end);
+
+    % Normalize each state to [-1, 1] so high-degree monomials stay O(1).
+    % Use full-dataset min/max so Xs and Ys share the same scaling.
+    xmin  = min(Xd, [], 2);
+    xmax  = max(Xd, [], 2);
+    xrng  = xmax - xmin;
+    xrng(xrng < eps) = 1;
+    Xd_n  = 2*(Xd - xmin) ./ xrng - 1;
+
+    Xs = Xd_n(:, 1:end-1);
+    Ys = Xd_n(:, 2:end);
 
     for ci = 1:N_cfgs
         tic;
@@ -644,9 +663,14 @@ legend(ax1, h, fam_names, 'Location', 'best', 'FontSize', 7);
 %% Double Scroll Extended Sweep — richer dictionaries for regime 4 only
 
 ds_idx = 4;   % Double Scroll is regime 4
-Xds = X_datasets{ds_idx};
-Xs_ds = Xds(:, 1:end-1);
-Ys_ds = Xds(:, 2:end);
+Xds   = X_datasets{ds_idx};
+xmin_ds = min(Xds, [], 2);
+xmax_ds = max(Xds, [], 2);
+xrng_ds = xmax_ds - xmin_ds;
+xrng_ds(xrng_ds < eps) = 1;
+Xds_n = 2*(Xds - xmin_ds) ./ xrng_ds - 1;
+Xs_ds = Xds_n(:, 1:end-1);
+Ys_ds = Xds_n(:, 2:end);
 
 sweep_cfgs_ds = {
     struct('type','rbf',  'n_centers',100, 'sigma',1.0), ...
