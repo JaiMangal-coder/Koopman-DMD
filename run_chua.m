@@ -212,7 +212,7 @@ for r = 1:n_regimes
         legend(ax4, 'Re(\xi_k)', 'Im(\xi_k)', 'Location', 'best');
         grid(ax4, 'on');
 
-        exportgraphics(fig_color, 'writeup/doubleScrollColoring.png', 'Resolution', 150);
+        exportgraphics(fig_color, 'writeup/doubleScrollColoring.png', 'Resolution', 300);
     end
 
     %% Koopman mode reconstruction — limit cycle (r=2) and period-doubled (r=3)
@@ -548,7 +548,7 @@ for r = 1:n_regimes
         end
 
         if r == 3
-            exportgraphics(fig_pp, 'writeup/periodDoubledPP.png', 'Resolution', 150);
+            exportgraphics(fig_pp, 'writeup/periodDoubledPP.png', 'Resolution', 300);
         end
     end
 
@@ -557,8 +557,8 @@ for r = 1:n_regimes
 end
 
 %% Export per-regime composite figures (after all regimes have filled them in)
-exportgraphics(fig_eig,   'writeup/eigenvalues.png',  'Resolution', 150);
-exportgraphics(fig_phase, 'writeup/MeasuredChua.png', 'Resolution', 150);
+exportgraphics(fig_eig,   'writeup/eigenvalues.png',  'Resolution', 300);
+exportgraphics(fig_phase, 'writeup/MeasuredChua.png', 'Resolution', 300);
 
 % =========================================================================
 %% Dictionary Sweep — compare types and sizes across all 4 regimes
@@ -673,7 +673,7 @@ for fi = 1:5
 end
 legend(ax1, h, fam_names, 'Location', 'best', 'FontSize', 7);
 
-exportgraphics(fig_sw, 'writeup/dictionarySweep.png', 'Resolution', 150);
+exportgraphics(fig_sw, 'writeup/dictionarySweep.png', 'Resolution', 300);
 
 % =========================================================================
 %% Double Scroll Extended Sweep — richer dictionaries for regime 4 only

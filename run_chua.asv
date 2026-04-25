@@ -18,8 +18,9 @@ regimes = { ...
 n_regimes = size(regimes, 1);
 
 %% Dictionary options
-% Use a simpler dictionary first for stability
-dict_opts.type = 'pwl';
+% Use the same dictionary for cross-regime comparisons such as the
+% eigenvalue figure, one-step error, and baseline predictions.
+dict_opts.type = 'poly';
 
 state_names  = {'x (V)', 'y (V)', 'z (V)'};
 state_labels = {'x1', 'x2', 'x3'};
@@ -31,6 +32,15 @@ edmd_opts.tol    = 1e-6;
 %% Pre-allocate storage for sweep and eigenvalue figure
 X_datasets = cell(n_regimes, 1);
 fig_eig    = figure('Name', 'Chua: Koopman Eigenvalues by Regime');
+eig_title_set = false;
+
+%% Phase portrait figure (2x2, filled inside the loop)
+fig_phase = figure('Name', 'Chua: Phase Portraits — Measured Signals', ...
+                   'Position', [150 150 900 700]);
+tl_phase  = tiledlayout(fig_phase, 2, 2, ...
+                        'Padding', 'compact', 'TileSpacing', 'compact');
+title(tl_phase, 'Chua Circuit Phase Portraits — Measured Signals', ...
+      'FontSize', 13, 'FontWeight', 'bold');
 
 %% Process each regime
 for r = 1:n_regimes
@@ -66,12 +76,17 @@ for r = 1:n_regimes
 
     %% Top eigenvalues
     [~, ord] = sort(abs(lambda), 'descend');
-    fprintf('  Top 5 Koopman eigenvalues (by magnitude):\n');
+    fprintf('  Top 5 Koopman eigenvalues (common dictionary, by magnitude):\n');
     disp(lambda(ord(1:min(5, end))));
 
     %% Eigenvalue subplot
     ax_eig = subplot(2, 2, r, 'Parent', fig_eig);
     plot_eigenvalues(ax_eig, lambda, regime_name);
+    if ~eig_title_set
+        sgtitle(fig_eig, sprintf('Chua: Koopman Eigenvalues by Regime (N_{\\psi} = %d)', ...
+            numel(labels)));
+        eig_title_set = true;
+    end
 
     %% State indices in the dictionary
     state_idx = zeros(1, 3);
@@ -103,13 +118,15 @@ for r = 1:n_regimes
         grid on;
     end
 
-    %% Phase portrait (x vs y)
-    figure('Name', sprintf('Regime %d: %s — phase portrait', r, regime_name));
-    plot(X_all(1, :), X_all(2, :), 'b-', 'LineWidth', 1.0);
-    xlabel('x (V)');
-    ylabel('y (V)');
-    title(sprintf('%s: phase portrait (measured)', regime_name));
-    grid on;
+    %% Phase portrait (x vs y) — add tile to the shared 2×2 figure
+    ax_phase = nexttile(tl_phase, r);
+    plot(ax_phase, X_all(1, :), X_all(2, :), 'b-', 'LineWidth', 0.8);
+    xlabel(ax_phase, 'x (V)', 'FontSize', 10);
+    ylabel(ax_phase, 'y (V)', 'FontSize', 10);
+    title(ax_phase, regime_name, 'FontSize', 11, 'FontWeight', 'bold');
+    grid(ax_phase, 'on');
+    box(ax_phase, 'on');
+    set(ax_phase, 'FontSize', 10);
 
     %% Double-scroll eigenfunction coloring (r=4)
     % Use a richer Chua-matched dictionary, then evaluate the Koopman
@@ -194,6 +211,8 @@ for r = 1:n_regimes
         title(ax4, 'Eigenfunction time trace along the trajectory');
         legend(ax4, 'Re(\xi_k)', 'Im(\xi_k)', 'Location', 'best');
         grid(ax4, 'on');
+
+        % exportgraphics(fig_color, 'writeup/doubleScrollColoring.png', 'Resolution', 150);
     end
 
     %% Koopman mode reconstruction — limit cycle (r=2) and period-doubled (r=3)
@@ -399,21 +418,18 @@ for r = 1:n_regimes
             n_plot, n_plot*dt*f_dom, f_dom);
 
         % ============================================================
-        % Tabbed figure: all Koopman reconstruction views in one window
-        %   Tab 1 — Time Series   : 3 states × 3 mode sets (3×3 grid)
-        %   Tab 2 — Modal Contrib : per-mode x/y/z contributions
-        %   Tab 3 — Phase Plane   : reconstructed x-y attractor shape
+        % Three separate figures (no uitab — easier to save):
+        %   Figure 1 — Time Series   : 3 states × 3 mode sets (3×3 grid)
+        %   Figure 2 — Modal Contrib : per-mode x/y/z contributions
+        %   Figure 3 — Phase Plane   : reconstructed attractor shape
         rec_data   = {x_rec_unit_all, x_rec_unit_3,  x_rec_unit_10};
         rec_labels = {'All bounded (proj.)', 'Top ~3 (proj.)', 'Top ~10 (proj.)'};
         rec_colors = {'g--', 'r--', 'b--'};
 
-        fig_tabs = figure('Name', sprintf('%s — Koopman Reconstruction', regime_name), ...
-                          'Position', [80 60 1300 900]);
-        tg = uitabgroup('Parent', fig_tabs);
-
-        % ------ Tab 1: Time Series ------
-        tab_ts = uitab('Parent', tg, 'Title', 'Time Series');
-        tl_ts  = tiledlayout(tab_ts, 3, 3, ...
+        % ------ Figure 1: Time Series ------
+        fig_ts = figure('Name', sprintf('%s — Time Series Reconstruction', regime_name), ...
+                        'Position', [80 60 1300 900]);
+        tl_ts  = tiledlayout(fig_ts, 3, 3, ...
                              'Padding', 'compact', 'TileSpacing', 'compact');
         title(tl_ts, ...
             sprintf('%s: Koopman reconstruction of x, y, z (unit-circle projected)', ...
@@ -436,11 +452,12 @@ for r = 1:n_regimes
             end
         end
 
-        % ------ Tab 2: Modal Contributions ------
-        nshow   = min(6, numel(selected_10));
-        tab_mc  = uitab('Parent', tg, 'Title', 'Modal Contributions');
-        tl_mc   = tiledlayout(tab_mc, nshow, 3, ...
-                              'Padding', 'compact', 'TileSpacing', 'compact');
+        % ------ Figure 2: Modal Contributions ------
+        nshow  = min(6, numel(selected_10));
+        fig_mc = figure('Name', sprintf('%s — Modal Contributions', regime_name), ...
+                        'Position', [80 60 1300 900]);
+        tl_mc  = tiledlayout(fig_mc, nshow, 3, ...
+                             'Padding', 'compact', 'TileSpacing', 'compact');
         title(tl_mc, ...
             sprintf('%s: per-mode contributions to x, y, z (unit-circle projected)', ...
                 regime_name), 'FontSize', 12, 'FontWeight', 'bold');
@@ -462,7 +479,7 @@ for r = 1:n_regimes
             end
         end
 
-        % ------ Tab 3: Phase Plane ------
+        % ------ Figure 3: Phase Plane ------
         % 3 projections (x-y, x-z, y-z) × 2 rows (measured | top-10 recon).
         %
         % For the period-doubled regime we use the f0/2 Koopman eigenfunction
@@ -476,12 +493,10 @@ for r = 1:n_regimes
         proj_ylbls = {'y (V)', 'z (V)', 'z (V)'};
         proj_names = {'x-y', 'x-z', 'y-z'};
 
-        % Compute loop label and phase-sorted indices for period-doubled only.
-        % The f0/2 eigenfunction's complex time factor a_k * lambda_proj^n
-        % has phase that increases monotonically by angle(lambda_proj) each
-        % step, completing 2pi over one doubled period.  Sorting all loop-A
-        % samples by this phase orders them around the closed orbit, so
-        % connecting them traces a smooth representative curve for that loop.
+        % Compute loop label for period-doubled only.  The f0/2 eigenfunction's
+        % complex time factor a_k * lambda_proj^n has phase that increases
+        % monotonically by angle(lambda_proj) each step, completing 2pi over
+        % one doubled period.  Its sign labels the two loops.
         if r == 3
             [~, ii_half] = min(osc_freqs);
             k_half       = selected_10(ii_half);
@@ -492,8 +507,9 @@ for r = 1:n_regimes
                 nnz(loop_A), nnz(~loop_A));
         end
 
-        tab_pp = uitab('Parent', tg, 'Title', 'Phase Plane');
-        tl_pp  = tiledlayout(tab_pp, 2, 3, ...
+        fig_pp = figure('Name', sprintf('%s — Phase Plane Reconstruction', regime_name), ...
+                        'Position', [80 60 1300 800]);
+        tl_pp  = tiledlayout(fig_pp, 2, 3, ...
                              'Padding', 'compact', 'TileSpacing', 'compact');
         title(tl_pp, ...
             sprintf('%s: phase portraits — measured (top) vs top-10 reconstruction (bottom)', ...
@@ -530,11 +546,19 @@ for r = 1:n_regimes
                 grid(ax, 'on');
             end
         end
+
+        if r == 3
+            exportgraphics(fig_pp, 'writeup/periodDoubledPP.png', 'Resolution', 150);
+        end
     end
 
     %% Save data for dictionary sweep
     X_datasets{r} = X_data;
 end
+
+%% Export per-regime composite figures (after all regimes have filled them in)
+exportgraphics(fig_eig,   'writeup/eigenvalues.png',  'Resolution', 150);
+exportgraphics(fig_phase, 'writeup/MeasuredChua.png', 'Resolution', 150);
 
 % =========================================================================
 %% Dictionary Sweep — compare types and sizes across all 4 regimes
@@ -571,8 +595,17 @@ sweep_time = zeros(n_regimes, N_cfgs);   % milliseconds
 fprintf('\n=== Dictionary Sweep ===\n');
 for r = 1:n_regimes
     Xd = X_datasets{r};
-    Xs = Xd(:, 1:end-1);
-    Ys = Xd(:, 2:end);
+
+    % Normalize each state to [-1, 1] so high-degree monomials stay O(1).
+    % Use full-dataset min/max so Xs and Ys share the same scaling.
+    xmin  = min(Xd, [], 2);
+    xmax  = max(Xd, [], 2);
+    xrng  = xmax - xmin;
+    xrng(xrng < eps) = 1;
+    Xd_n  = 2*(Xd - xmin) ./ xrng - 1;
+
+    Xs = Xd_n(:, 1:end-1);
+    Ys = Xd_n(:, 2:end);
 
     for ci = 1:N_cfgs
         tic;
@@ -640,13 +673,20 @@ for fi = 1:5
 end
 legend(ax1, h, fam_names, 'Location', 'best', 'FontSize', 7);
 
+% exportgraphics(fig_sw, 'writeup/dictionarySweep.png', 'Resolution', 150);
+
 % =========================================================================
 %% Double Scroll Extended Sweep — richer dictionaries for regime 4 only
 
 ds_idx = 4;   % Double Scroll is regime 4
-Xds = X_datasets{ds_idx};
-Xs_ds = Xds(:, 1:end-1);
-Ys_ds = Xds(:, 2:end);
+Xds   = X_datasets{ds_idx};
+xmin_ds = min(Xds, [], 2);
+xmax_ds = max(Xds, [], 2);
+xrng_ds = xmax_ds - xmin_ds;
+xrng_ds(xrng_ds < eps) = 1;
+Xds_n = 2*(Xds - xmin_ds) ./ xrng_ds - 1;
+Xs_ds = Xds_n(:, 1:end-1);
+Ys_ds = Xds_n(:, 2:end);
 
 sweep_cfgs_ds = {
     struct('type','rbf',  'n_centers',100, 'sigma',1.0), ...
