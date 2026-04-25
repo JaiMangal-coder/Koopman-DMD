@@ -18,8 +18,9 @@ regimes = { ...
 n_regimes = size(regimes, 1);
 
 %% Dictionary options
-% Use a simpler dictionary first for stability
-dict_opts.type = 'pwl';
+% Use the same dictionary for cross-regime comparisons such as the
+% eigenvalue figure, one-step error, and baseline predictions.
+dict_opts.type = 'poly';
 
 state_names  = {'x (V)', 'y (V)', 'z (V)'};
 state_labels = {'x1', 'x2', 'x3'};
@@ -31,6 +32,7 @@ edmd_opts.tol    = 1e-6;
 %% Pre-allocate storage for sweep and eigenvalue figure
 X_datasets = cell(n_regimes, 1);
 fig_eig    = figure('Name', 'Chua: Koopman Eigenvalues by Regime');
+eig_title_set = false;
 
 %% Phase portrait figure (2x2, filled inside the loop)
 fig_phase = figure('Name', 'Chua: Phase Portraits — Measured Signals', ...
@@ -74,12 +76,17 @@ for r = 1:n_regimes
 
     %% Top eigenvalues
     [~, ord] = sort(abs(lambda), 'descend');
-    fprintf('  Top 5 Koopman eigenvalues (by magnitude):\n');
+    fprintf('  Top 5 Koopman eigenvalues (common dictionary, by magnitude):\n');
     disp(lambda(ord(1:min(5, end))));
 
     %% Eigenvalue subplot
     ax_eig = subplot(2, 2, r, 'Parent', fig_eig);
     plot_eigenvalues(ax_eig, lambda, regime_name);
+    if ~eig_title_set
+        sgtitle(fig_eig, sprintf('Chua: Koopman Eigenvalues by Regime (N_{\\psi} = %d)', ...
+            numel(labels)));
+        eig_title_set = true;
+    end
 
     %% State indices in the dictionary
     state_idx = zeros(1, 3);

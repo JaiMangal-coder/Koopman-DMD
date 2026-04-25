@@ -1,17 +1,12 @@
 function plot_eigenvalues(varargin)
-% PLOT_EIGENVALUES  Plot Koopman eigenvalues in the complex plane with unit circle.
+% PLOT_EIGENVALUES  Plot Koopman eigenvalues in the complex plane.
 %
 %   plot_eigenvalues(lambda)
 %   plot_eigenvalues(lambda, title_str)
 %   plot_eigenvalues(ax, lambda, title_str)
 %
-%   Inputs:
-%     ax         axes handle to draw into (optional; creates a new figure if omitted)
-%     lambda     (N_psi x 1) complex eigenvalues from edmd()
-%     title_str  string title (optional)
-%
-%   Eigenvalues inside the unit circle are plotted as filled blue circles;
-%   eigenvalues outside as open red circles.
+%   Conjugate pairs are identified and each pair is drawn in a distinct
+%   color.  Real eigenvalues are shown in black.
 
 % --- parse arguments ---
 if isa(varargin{1}, 'matlab.graphics.axis.Axes')
@@ -32,15 +27,53 @@ theta = linspace(0, 2*pi, 361);
 hold(ax, 'on');
 plot(ax, cos(theta), sin(theta), 'k-', 'LineWidth', 1.0);
 
-% --- eigenvalues: split inside / outside unit circle ---
-inside = abs(lambda) <= 1;
-if any(inside)
-    scatter(ax, real(lambda(inside)),  imag(lambda(inside)),  30, ...
-        'b', 'filled', 'DisplayName', 'Inside unit circle');
+% --- identify conjugate pairs and real eigenvalues ---
+tol_imag = 1e-6;   % threshold to call an eigenvalue real
+tol_pair = 1e-4;   % tolerance for matching conjugates
+
+used = false(size(lambda));
+pairs  = {};   % each cell: indices of the two conjugate members
+reals  = [];   % indices of real eigenvalues
+
+for k = 1:numel(lambda)
+    if used(k), continue; end
+    if abs(imag(lambda(k))) < tol_imag
+        reals(end+1) = k; %#ok<AGROW>
+        used(k) = true;
+    else
+        % find conjugate partner
+        diffs = abs(lambda - conj(lambda(k)));
+        diffs(used) = inf;
+        diffs(k)    = inf;
+        [best, j] = min(diffs);
+        if best < tol_pair
+            pairs{end+1} = [k, j]; %#ok<AGROW>
+            used(k) = true;
+            used(j) = true;
+        else
+            % unpaired complex eigenvalue — treat as its own pair
+            pairs{end+1} = [k]; %#ok<AGROW>
+            used(k) = true;
+        end
+    end
 end
-if any(~inside)
-    scatter(ax, real(lambda(~inside)), imag(lambda(~inside)), 30, ...
-        'r', 'LineWidth', 1.2, 'DisplayName', 'Outside unit circle');
+
+% --- colors: one per pair, cycling through a qualitative palette ---
+palette = lines(max(numel(pairs), 1));
+
+for p = 1:numel(pairs)
+    idx = pairs{p};
+    col = palette(p, :);
+    scatter(ax, real(lambda(idx)), imag(lambda(idx)), 40, ...
+        'MarkerFaceColor', col, 'MarkerEdgeColor', col * 0.6, ...
+        'MarkerFaceAlpha', 0.85);
+end
+
+% --- real eigenvalues in black ---
+if ~isempty(reals)
+    scatter(ax, real(lambda(reals)), imag(lambda(reals)), 40, ...
+        'MarkerFaceColor', [0 0 0], 'MarkerEdgeColor', [0 0 0], ...
+        'MarkerFaceAlpha', 0.85);
 end
 
 % --- formatting ---
