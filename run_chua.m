@@ -211,6 +211,8 @@ for r = 1:n_regimes
         title(ax4, 'Eigenfunction time trace along the trajectory');
         legend(ax4, 'Re(\xi_k)', 'Im(\xi_k)', 'Location', 'best');
         grid(ax4, 'on');
+
+        exportgraphics(fig_color, 'writeup/doubleScrollColoring.png', 'Resolution', 150);
     end
 
     %% Koopman mode reconstruction — limit cycle (r=2) and period-doubled (r=3)
@@ -544,11 +546,19 @@ for r = 1:n_regimes
                 grid(ax, 'on');
             end
         end
+
+        if r == 3
+            exportgraphics(fig_pp, 'writeup/periodDoubledPP.png', 'Resolution', 150);
+        end
     end
 
     %% Save data for dictionary sweep
     X_datasets{r} = X_data;
 end
+
+%% Export per-regime composite figures (after all regimes have filled them in)
+exportgraphics(fig_eig,   'writeup/eigenvalues.png',  'Resolution', 150);
+exportgraphics(fig_phase, 'writeup/MeasuredChua.png', 'Resolution', 150);
 
 % =========================================================================
 %% Dictionary Sweep — compare types and sizes across all 4 regimes
@@ -662,6 +672,8 @@ for fi = 1:5
     h(fi) = plot(ax1, NaN, NaN, [col 'o-'], 'MarkerSize', 6, 'LineWidth', 1.2);
 end
 legend(ax1, h, fam_names, 'Location', 'best', 'FontSize', 7);
+
+exportgraphics(fig_sw, 'writeup/dictionarySweep.png', 'Resolution', 150);
 
 % =========================================================================
 %% Double Scroll Extended Sweep — richer dictionaries for regime 4 only
