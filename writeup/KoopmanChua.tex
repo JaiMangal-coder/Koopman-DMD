@@ -162,49 +162,68 @@ These measurements were saved as time series and then organized into snapshot pa
 
 \begin{figure}[H]
     \centering
-    \fbox{\rule{0pt}{2.4in}\rule{0.9\textwidth}{0pt}}
-    \caption{Placeholder for measured time series and/or phase portraits from the four experimental regimes.}
+    \includegraphics[width=0.85\textwidth]{MeasuredChua.png}
+    \caption{Phase portraits ($x$ versus $y$) of the four measured regimes. The fixed-point regime (top left) shows scatter around a single point, indicating that the trajectory has settled to an equilibrium with measurement noise. The limit cycle (top right) traces a single closed loop, the geometric signature of sustained periodic oscillation. The period-doubled regime (bottom left) traces a doubled loop --- the trajectory must complete two passes before returning to its starting point. The double-scroll regime (bottom right) shows the iconic two-lobe chaotic attractor that distinguishes Chua's circuit. These four panels illustrate the qualitative progression through the route to chaos in raw state space, before any Koopman analysis is applied.}
     \label{fig:measured-data}
 \end{figure}
 
 \section{EDMD Analysis of the Four Regimes}
 
 \subsection{Choice of Dictionary}
-Because EDMD depends strongly on the observable dictionary, part of the analysis focused on comparing different families of observables. The code includes linear, polynomial, radial basis function, and Chua-matched piecewise-linear observables. The Chua-specific observables are motivated by the piecewise-linear nonlinearity in the circuit, so they are expected to capture the dynamics more efficiently than a completely generic basis. This follows the broader EDMD philosophy that approximation quality depends not only on the data, but on whether the chosen observables are rich enough to represent the important Koopman-invariant structures \citep{williams2015}.
+Because EDMD depends strongly on the observable dictionary, part of the analysis focused on comparing different families of observables. The implementation includes five families: linear (the raw state), polynomial (monomials of total degree at most $d$), radial basis function (Gaussian bumps with $k$-means centers), Chua-matched piecewise-linear (the seven observables built from the kink terms $|x_1 \pm 1|$ and $x_1 |x_1 \pm 1|$), and a ``full'' family that combines polynomial, RBF, and piecewise-linear terms. The Chua-specific observables are motivated by the piecewise-linear nonlinearity in the circuit, so they are expected to capture the dynamics more efficiently than a completely generic basis. This follows the broader EDMD philosophy that approximation quality depends not only on the data, but on whether the chosen observables are rich enough to represent the important Koopman-invariant structures \citep{williams2015}.
 
 This comparison is important conceptually. Koopman theory is not a black-box replacement for nonlinear dynamics. Rather, it is a framework in which physical insight enters through the observables one chooses to evolve.
 
 \subsection{Dictionary Sweep: Accuracy Versus Cost}
-To quantify the effect of dictionary choice, we performed a sweep over dictionary families and sizes and measured the relative one-step error in lifted space together with computation time. The expected trend is that richer dictionaries often reduce approximation error, but they also increase computational cost and can introduce conditioning issues. This tradeoff is visible in the implementation and is an important practical lesson of EDMD.
+To quantify the effect of dictionary choice, we performed a sweep over dictionary families and sizes and measured the relative one-step error in lifted space together with computation time. Five dictionary families were compared: linear (the raw state, no constant), piecewise-linear (the seven Chua-matched observables built from the kink terms), polynomial (monomials up to a chosen degree), radial basis function with $k$-means centers, and ``full'' (polynomial combined with optional RBF and PWL terms). For each regime the data were min-max normalized to $[-1,1]$ before lifting, so that high-degree monomials remain $O(1)$ and the Gram matrix stays well conditioned.
+
+The results are shown in Figure~\ref{fig:dictionary-sweep}. The expected trend, that richer dictionaries reduce one-step prediction error, is visible across all four regimes: the polynomial, RBF, and full families all improve substantially as $N_\psi$ grows, with the chaotic double-scroll regime showing the largest absolute improvement because it has the most complex spectral content to capture. The linear dictionary saturates at relatively high error in every regime, confirming that purely linear observables cannot describe the Chua dynamics.
+
+The right column shows that this accuracy comes at a cost. The dominant scaling is the cubic complexity of the EDMD solve in $N_\psi$, so timing rises monotonically for the polynomial and RBF families. The full dictionary timing is non-monotonic because different ``full'' configurations include or exclude the RBF block (and the associated $k$-means call); when the configurations are sorted by $N_\psi$ for plotting, RBF-free configurations sit between RBF-containing ones of similar size, producing visible dips. The conceptual point is that dictionary choice is genuinely a tradeoff: enrichment improves accuracy but does so at increasing cost and with the risk of numerical conditioning issues at high degree if normalization is not used.
 
 \begin{figure}[H]
     \centering
-    \fbox{\rule{0pt}{2.5in}\rule{0.9\textwidth}{0pt}}
-    \caption{Placeholder for dictionary sweep results showing how improved observable sets can reduce relative error while increasing computation time.}
+    \includegraphics[width=0.95\textwidth]{dictionarySweep.png}
+    \caption{Dictionary sweep across the four regimes. Each row corresponds to a regime, with the relative one-step error in lifted space (left, log scale) and the EDMD wall-clock time in milliseconds (right) plotted against the number of observables $N_\psi$. Marker color encodes the dictionary family: black (linear), green (PWL), blue (poly), magenta (RBF), red (full). Solid and dashed lines connect points within the same family. Error decreases substantially with richer dictionaries, while computation time rises with $N_\psi$ as expected from the cubic-in-$N_\psi$ EDMD solve.}
     \label{fig:dictionary-sweep}
 \end{figure}
 
 \subsection{Koopman Eigenvalues Across Regimes}
-For each regime, EDMD produces a finite-dimensional Koopman matrix whose eigenvalues approximate the spectral behavior of the system. These eigenvalues are especially informative when compared across regimes.
+For each regime, EDMD produces a finite-dimensional Koopman matrix whose eigenvalues approximate the spectral behavior of the system. These eigenvalues are especially informative when compared across regimes, because the qualitative differences between fixed-point, periodic, period-doubled, and chaotic dynamics translate into qualitative differences in the spectrum.
 
-For a fixed point, one expects non-oscillatory behavior to dominate, so the spectrum should be concentrated near the real axis. For a stable limit cycle, complex conjugate pairs are expected because oscillation in real-valued systems is represented by conjugate modes. If the oscillation persists without decay, the corresponding eigenvalues should lie near the unit circle in discrete time. For a period-doubled orbit, one expects new spectral content associated with the subharmonic frequency, so additional conjugate pairs should appear at lower frequencies. In the chaotic double-scroll regime, the spectrum is generally more complicated, but one still hopes to identify coherent oscillatory structure through leading eigenvalues and eigenfunctions.
+A common dictionary --- monomials up to total degree three, giving $N_\psi = 20$ observables --- was used for all four regimes so that the panels in Figure~\ref{fig:eigenvalues} are directly comparable. To make conjugate pairs visually identifiable, the plotting routine identifies each $\lambda$ together with its conjugate $\bar{\lambda}$ and assigns them a single color from a qualitative palette; real eigenvalues are drawn in black. The unit circle is drawn for reference, since for a periodic attractor the physical Koopman eigenvalues lie exactly on it (any deviation inward is an EDMD truncation artifact).
+
+The expected pattern, regime by regime, is the following. For a stable fixed point, all dynamics decay exponentially without oscillation, so the spectrum should consist of real eigenvalues clustered inside the unit circle, with no nontrivial complex pairs. For a stable limit cycle of period $T$ samples, the true Koopman eigenvalues are the $T$-th roots of unity $e^{i 2\pi k / T}$, all on the unit circle, with conjugate pairs at the fundamental frequency and its harmonics. For a period-doubled orbit, the period in samples doubles, so additional eigenvalues appear at the new $2T$-th roots of unity; the spectrum splits, and the half-frequency subharmonic shows up as a conjugate pair on the unit circle that was not present in the limit-cycle spectrum. The most direct fingerprint of period doubling is therefore the appearance of new conjugate pairs at angles between those of the original limit cycle. For chaos, no finite spectrum on the unit circle can capture the dynamics exactly; the EDMD spectrum spreads across a broader region of the complex plane, with magnitudes both on and inside the unit circle.
+
+These predictions are borne out in Figure~\ref{fig:eigenvalues}. The fixed-point panel shows only real eigenvalues, all black, with one near $\lambda = 1$ (the constant observable, which is always a Koopman eigenfunction with eigenvalue~1) and the rest clustered well inside the unit circle, consistent with non-oscillatory decay to equilibrium. The limit-cycle panel shows the constant mode at $\lambda = 1$, a real mode near $\lambda = -1$, and conjugate pairs near $\pm i$, all very close to the unit circle. These are precisely the fourth roots of unity, indicating that the limit cycle has approximately four samples per period. The period-doubled panel retains the structure of the limit cycle but adds several new conjugate pairs at intermediate angles around the unit circle (visible as additional colored pairs near $e^{\pm i \pi/4}$ and $e^{\pm i 3\pi/4}$), which is the spectral signature of the doubled orbit: the new pairs sit at the subharmonic frequency and its odd harmonics. The double-scroll panel shows the broadest distribution: many conjugate pairs are scattered both on and inside the unit circle, consistent with chaotic dynamics that are not captured by any finite set of unit-circle frequencies.
 
 \begin{figure}[H]
     \centering
-    \fbox{\rule{0pt}{2.5in}\rule{0.9\textwidth}{0pt}}
-    \caption{Placeholder for the Koopman eigenvalues computed in each regime. Complex conjugate pairs are expected for oscillatory dynamics, especially in the limit-cycle and period-doubled regimes.}
+    \includegraphics[width=0.9\textwidth]{eigenvalues.png}
+    \caption{Koopman eigenvalues for the four Chua regimes, computed from EDMD with a degree-3 polynomial dictionary ($N_\psi = 20$). Each conjugate pair is plotted in a single color; real eigenvalues are shown in black. The fixed-point spectrum is purely real and inside the unit circle. The limit-cycle spectrum sits near the fourth roots of unity. The period-doubled spectrum adds new conjugate pairs at intermediate angles (the subharmonic and its odd harmonics). The double-scroll spectrum is broadly distributed both on and inside the unit circle, reflecting the absence of a finite set of dominant frequencies in chaos.}
     \label{fig:eigenvalues}
 \end{figure}
 
 \subsection{Period-Doubled Reconstruction from Koopman Modes}
-One of the strongest demonstrations in this project is the Koopman reconstruction of the period-doubled regime. The analysis script identifies bounded modes and reconstructs the measured state from selected Koopman components. In the period-doubled case, the script deliberately switches to a richer polynomial dictionary for reconstruction because the smaller piecewise-linear dictionary is not expressive enough to capture the half-frequency eigenfunction associated with the doubled orbit.
+Beyond reading off eigenvalues, the Koopman decomposition can be used to reconstruct the measured state directly. Using the eigenvalue/eigenvector pairs $(\lambda_k, \phi_k)$ of the EDMD matrix $K$, the lifted dynamics admit the modal expansion
+\begin{equation}
+    \psi(x_n) \approx \sum_k a_k \,\lambda_k^n \,\phi_k,
+    \qquad a_k = (\Phi^{+} \psi(x_0))_k,
+\end{equation}
+and projecting back to physical state coordinates with the selector matrix $C$ that picks out $x_1, x_2, x_3$ from the dictionary gives
+\begin{equation}
+    x_n \approx \sum_k a_k \,\lambda_k^n \,(C \phi_k).
+\end{equation}
+The vectors $v_k = C \phi_k \in \mathbb{R}^3$ are the Koopman \emph{modes}: they record how strongly each of the three measured states participates in the $k$-th eigenfunction. The scalar amplitude $a_k \lambda_k^n$ then drives that mode in time.
 
-This is a particularly instructive example because it shows how the spectral picture reflects the nonlinear bifurcation. The dominant oscillatory content is no longer just the original fundamental frequency. Instead, the reconstruction reveals the importance of the subharmonic mode, corresponding to the fact that the system now repeats only after two passes rather than one. In the code, the selected modes are also projected onto the unit circle during reconstruction to remove artificial numerical decay of sustained oscillations. This makes the physical interpretation of the periodic orbit clearer.
+The period-doubled regime is particularly instructive because its spectral picture reflects the bifurcation directly. The dominant oscillatory content is no longer just the original fundamental frequency $f_0$ inherited from the limit cycle; instead, the leading conjugate pair sits near $f_0/2$, the subharmonic that is the hallmark of period doubling. The script ranks bounded modes by their contribution to the $x$-state energy, taking conjugate pairs together so that real-valued reconstructions are preserved, and selects the top three and top ten such modes for comparison.
+
+One subtlety is that EDMD systematically pulls the eigenvalues of a sustained periodic orbit slightly inside the unit circle: a finite dictionary cannot represent the global Koopman operator exactly, so the least-squares fit absorbs some genuine oscillation as a small numerical decay. Over thousands of samples this artifact accumulates and the modal reconstruction $a_k \lambda_k^n \to 0$ even though the physical signal does not. To remove this, the reconstruction projects each oscillatory eigenvalue back to the unit circle, $\lambda_k \mapsto \lambda_k / |\lambda_k|$, while leaving its identified frequency and phase unchanged. Real (DC) eigenvalues are not modified. This gives a cleaner physical interpretation of what the spectrum is asserting --- that these modes oscillate at fixed frequencies forever --- without altering any of the dynamical content that EDMD actually identified.
 
 \begin{figure}[H]
     \centering
     \fbox{\rule{0pt}{2.8in}\rule{0.9\textwidth}{0pt}}
-    \caption{Placeholder for the Koopman mode reconstruction of the period-doubled regime, together with an explanation of the mode selection and unit-circle projection implemented in \texttt{run\_chua.m}.}
+    \caption{Koopman mode reconstruction of the period-doubled regime. Each row compares the measured state (black) with the unit-circle-projected reconstruction (dashed) for $x$, $y$, and $z$, using all bounded modes, the top three modes, and the top ten modes. The top-ten reconstruction recovers the doubled orbit faithfully; the top-three reconstruction captures the subharmonic but loses higher harmonics that shape the loop. (Placeholder figure; produced by \texttt{run\_chua.m}.)}
     \label{fig:period-doubled-reconstruction}
 \end{figure}
 
@@ -239,8 +258,8 @@ The central challenge for any analysis method applied to chaos is that the dynam
 
 \begin{figure}[H]
     \centering
-    \fbox{\rule{0pt}{2.8in}\rule{0.9\textwidth}{0pt}}
-    \caption{Double-scroll attractor colored by Koopman eigenfunction $\xi_k$ (mode selected by oscillatory variance). \emph{Top row:} attractor points colored by $\arg(\xi_k)$ in the $x$-$y$ and $x$-$z$ projections; coherent color bands confirm that $\xi_k$ is a genuine phase coordinate on the attractor. \emph{Bottom left:} three-dimensional attractor split by $\mathrm{sign}(\mathrm{Re}(\xi_k))$; blue and red cleanly separate the two scrolls, a partition that no single voltage threshold achieves. \emph{Bottom right:} time trace of $\mathrm{Re}(\xi_k)$ (blue) and $\mathrm{Im}(\xi_k)$ (red), showing near-sinusoidal evolution of the eigenfunction despite irregular chaotic switching in the raw state.}
+    \includegraphics[width=0.95\textwidth]{doubleScrollColoring.png}
+    \caption{Double-scroll attractor colored by a Koopman eigenfunction $\xi_k$ with $|\lambda_k| = 0.957$ and identified frequency $f_k \approx 605~\mathrm{Hz}$. \emph{Top row:} attractor points colored by $\arg(\xi_k)$ in the $x$-$y$ and $x$-$z$ projections; the smooth, coherent color bands sweeping around each lobe confirm that $\xi_k$ is acting as a genuine phase coordinate on the attractor rather than a noise-driven artifact. \emph{Bottom left:} three-dimensional attractor split by $\mathrm{sign}(\mathrm{Re}(\xi_k))$; blue and red cleanly separate the two scrolls, a partition that no single voltage threshold could achieve in raw state space. \emph{Bottom right:} time trace of $\mathrm{Re}(\xi_k)$ (blue) and $\mathrm{Im}(\xi_k)$ (red); despite the irregular chaotic switching in the raw voltages, the eigenfunction itself executes a near-sinusoidal complex rotation, the time-domain signature of the linear evolution $\xi_k(x_{n+1}) = \lambda_k \xi_k(x_n)$.}
     \label{fig:double-scroll-coloring}
 \end{figure}
 
