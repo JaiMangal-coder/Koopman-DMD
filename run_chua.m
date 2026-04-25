@@ -416,21 +416,18 @@ for r = 1:n_regimes
             n_plot, n_plot*dt*f_dom, f_dom);
 
         % ============================================================
-        % Tabbed figure: all Koopman reconstruction views in one window
-        %   Tab 1 — Time Series   : 3 states × 3 mode sets (3×3 grid)
-        %   Tab 2 — Modal Contrib : per-mode x/y/z contributions
-        %   Tab 3 — Phase Plane   : reconstructed x-y attractor shape
+        % Three separate figures (no uitab — easier to save):
+        %   Figure 1 — Time Series   : 3 states × 3 mode sets (3×3 grid)
+        %   Figure 2 — Modal Contrib : per-mode x/y/z contributions
+        %   Figure 3 — Phase Plane   : reconstructed attractor shape
         rec_data   = {x_rec_unit_all, x_rec_unit_3,  x_rec_unit_10};
         rec_labels = {'All bounded (proj.)', 'Top ~3 (proj.)', 'Top ~10 (proj.)'};
         rec_colors = {'g--', 'r--', 'b--'};
 
-        fig_tabs = figure('Name', sprintf('%s — Koopman Reconstruction', regime_name), ...
-                          'Position', [80 60 1300 900]);
-        tg = uitabgroup('Parent', fig_tabs);
-
-        % ------ Tab 1: Time Series ------
-        tab_ts = uitab('Parent', tg, 'Title', 'Time Series');
-        tl_ts  = tiledlayout(tab_ts, 3, 3, ...
+        % ------ Figure 1: Time Series ------
+        fig_ts = figure('Name', sprintf('%s — Time Series Reconstruction', regime_name), ...
+                        'Position', [80 60 1300 900]);
+        tl_ts  = tiledlayout(fig_ts, 3, 3, ...
                              'Padding', 'compact', 'TileSpacing', 'compact');
         title(tl_ts, ...
             sprintf('%s: Koopman reconstruction of x, y, z (unit-circle projected)', ...
@@ -453,11 +450,12 @@ for r = 1:n_regimes
             end
         end
 
-        % ------ Tab 2: Modal Contributions ------
-        nshow   = min(6, numel(selected_10));
-        tab_mc  = uitab('Parent', tg, 'Title', 'Modal Contributions');
-        tl_mc   = tiledlayout(tab_mc, nshow, 3, ...
-                              'Padding', 'compact', 'TileSpacing', 'compact');
+        % ------ Figure 2: Modal Contributions ------
+        nshow  = min(6, numel(selected_10));
+        fig_mc = figure('Name', sprintf('%s — Modal Contributions', regime_name), ...
+                        'Position', [80 60 1300 900]);
+        tl_mc  = tiledlayout(fig_mc, nshow, 3, ...
+                             'Padding', 'compact', 'TileSpacing', 'compact');
         title(tl_mc, ...
             sprintf('%s: per-mode contributions to x, y, z (unit-circle projected)', ...
                 regime_name), 'FontSize', 12, 'FontWeight', 'bold');
@@ -479,7 +477,7 @@ for r = 1:n_regimes
             end
         end
 
-        % ------ Tab 3: Phase Plane ------
+        % ------ Figure 3: Phase Plane ------
         % 3 projections (x-y, x-z, y-z) × 2 rows (measured | top-10 recon).
         %
         % For the period-doubled regime we use the f0/2 Koopman eigenfunction
@@ -493,12 +491,10 @@ for r = 1:n_regimes
         proj_ylbls = {'y (V)', 'z (V)', 'z (V)'};
         proj_names = {'x-y', 'x-z', 'y-z'};
 
-        % Compute loop label and phase-sorted indices for period-doubled only.
-        % The f0/2 eigenfunction's complex time factor a_k * lambda_proj^n
-        % has phase that increases monotonically by angle(lambda_proj) each
-        % step, completing 2pi over one doubled period.  Sorting all loop-A
-        % samples by this phase orders them around the closed orbit, so
-        % connecting them traces a smooth representative curve for that loop.
+        % Compute loop label for period-doubled only.  The f0/2 eigenfunction's
+        % complex time factor a_k * lambda_proj^n has phase that increases
+        % monotonically by angle(lambda_proj) each step, completing 2pi over
+        % one doubled period.  Its sign labels the two loops.
         if r == 3
             [~, ii_half] = min(osc_freqs);
             k_half       = selected_10(ii_half);
@@ -509,8 +505,9 @@ for r = 1:n_regimes
                 nnz(loop_A), nnz(~loop_A));
         end
 
-        tab_pp = uitab('Parent', tg, 'Title', 'Phase Plane');
-        tl_pp  = tiledlayout(tab_pp, 2, 3, ...
+        fig_pp = figure('Name', sprintf('%s — Phase Plane Reconstruction', regime_name), ...
+                        'Position', [80 60 1300 800]);
+        tl_pp  = tiledlayout(fig_pp, 2, 3, ...
                              'Padding', 'compact', 'TileSpacing', 'compact');
         title(tl_pp, ...
             sprintf('%s: phase portraits — measured (top) vs top-10 reconstruction (bottom)', ...
