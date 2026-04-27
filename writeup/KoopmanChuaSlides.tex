@@ -322,11 +322,29 @@
 \end{frame}
 
 \begin{frame}{Measured Route to Chaos}
-    \centering
-    \includegraphics[width=0.87\textwidth,height=0.76\textheight,keepaspectratio]{MeasuredChua.png}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.49\textwidth}
+            \centering
+            \textbf{Oscilloscope (raw experimental)}\\[0.2em]
+            \begin{tabular}{@{}cc@{}}
+                \includegraphics[width=0.46\linewidth]{oscilloscopePics/stableNode.jpg} &
+                \includegraphics[width=0.46\linewidth]{oscilloscopePics/limitCycle.jpg} \\[-0.1em]
+                {\scriptsize fixed point} & {\scriptsize limit cycle} \\
+                \includegraphics[width=0.46\linewidth]{oscilloscopePics/periodDoubled.jpg} &
+                \includegraphics[width=0.46\linewidth]{oscilloscopePics/doubleScroll.jpg} \\[-0.1em]
+                {\scriptsize period doubled} & {\scriptsize double scroll}
+            \end{tabular}
+        \end{column}
+        \begin{column}{0.49\textwidth}
+            \centering
+            \textbf{Sampled phase portraits}\\[0.2em]
+            \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{MeasuredChua.png}
+        \end{column}
+    \end{columns}
 
     \vspace{0.1cm}
-    Fixed point \(\rightarrow\) limit cycle \(\rightarrow\) period-doubled orbit \(\rightarrow\) double-scroll chaos.
+    \centering
+    {\small Fixed point \(\rightarrow\) limit cycle \(\rightarrow\) period-doubled orbit \(\rightarrow\) double-scroll chaos.}
 \end{frame}
 
 \begin{frame}{Dictionary Choice Matters}

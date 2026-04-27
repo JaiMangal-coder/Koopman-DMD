@@ -169,6 +169,37 @@ $5000$ samples were recorded at a sampling frequency of roughly $30$\,kHz, then 
 
 \begin{figure}[H]
     \centering
+    \begin{subfigure}[t]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{oscilloscopePics/stableNode.jpg}
+        \caption{Fixed point}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{oscilloscopePics/limitCycle.jpg}
+        \caption{Limit cycle}
+    \end{subfigure}
+
+    \vspace{0.4em}
+
+    \begin{subfigure}[t]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{oscilloscopePics/periodDoubled.jpg}
+        \caption{Period-doubled oscillation}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{oscilloscopePics/doubleScroll.jpg}
+        \caption{Double-scroll chaos}
+    \end{subfigure}
+    \caption{Oscilloscope captures of the four regimes taken from the analog circuit during data collection, with the bifurcation potentiometer adjusted to walk through the route to chaos. These traces are the experimental view directly off the scope, before digitization; they should be compared with the sampled phase portraits in Figure~\ref{fig:measured-data}, which show the same regimes after the Arduino ADC.}
+    \label{fig:oscilloscope}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
     \includegraphics[width=0.6\textwidth]{MeasuredChua.png}
     \caption{Phase portraits ($x$ versus $y$) of the four measured regimes. The fixed-point regime (top left) shows scatter around a single point, indicating that the trajectory has settled to an equilibrium with measurement noise. The limit cycle (top right) traces a single closed loop, the geometric signature of sustained periodic oscillation. The period-doubled regime (bottom left) traces a doubled loop --- the trajectory must complete two passes before returning to its starting point. The double-scroll regime (bottom right) shows the iconic two-lobe chaotic attractor that distinguishes Chua's circuit. These four panels illustrate the qualitative progression through the route to chaos in raw state space, before any Koopman analysis is applied.}
     \label{fig:measured-data}
