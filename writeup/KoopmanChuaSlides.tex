@@ -228,6 +228,99 @@
     \end{columns}
 \end{frame}
 
+\begin{frame}{Chua's Circuit: Governing Equations}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.50\textwidth}
+            Three coupled ODEs in \(x=V_{C_1},\,y=V_{C_2},\,z=I_L\):
+            \[
+                \dot x=\alpha[y-x-f(x)]
+            \]
+            \[
+                RC_2\dot y=x-y+R_z
+            \]
+            \[
+               \dot z =-\beta y
+            \]
+
+            \vspace{0.2cm}
+            Piecewise-linear Chua diode characteristic:
+            \[
+                f(x) = G_b x
+                  + \frac{G_a-G_b}{2}
+                    \bigl(|x+E|-|x-E|\bigr)
+            \]
+
+            \vspace{0.15cm}
+        \end{column}
+        \begin{column}{0.46\textwidth}
+            \centering
+            \includegraphics[height=0.5\textheight]{writeup/KppmanChuaCircuitDiagram.png}
+
+            \vspace{0.05cm}
+            {\footnotesize Phase portraits \(x\)--\(y\) across four regimes.}
+        \end{column}
+    \end{columns}
+    \begin{block}{Our implementation}
+        Inductor realized as a \textbf{gyrator} (two op-amps); Chua diode also op-amp based. Summing amplifiers shift bipolar voltages into the Arduino ADC window \([0,5]\,\mathrm{V}\).
+    \end{block}
+\end{frame}
+
+\begin{frame}{Chua's Circuit: Dynamical Characteristics}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.52\textwidth}
+            \textbf{Route to chaos} (resistance \(R\) via potentiometer):
+            \[
+                \text{fixed point}
+                \;\to\; \text{limit cycle}
+                \;\to\; \text{period doubling}
+                \;\to\; \text{chaos}
+            \]
+
+            \vspace{0.2cm}
+            \textbf{Double-scroll Lyapunov spectrum:}
+            \[
+                \lambda_1 \approx +0.18,\quad
+                \lambda_2 \approx 0,\quad
+                \lambda_3 \lesssim -2.4
+            \]
+
+            \textbf{Kaplan--Yorke dimension:}
+            \[
+                D_{\mathrm{KY}}
+                = 2 + \frac{\lambda_1}{|\lambda_3|}
+                \approx 2.07
+            \]
+            Fractal attractor — non-integer dimension confirms chaos.
+
+            \vspace{0.2cm}
+            \textbf{Characteristic frequency:}
+            \(\approx 500\text{--}700\,\mathrm{Hz}\)
+            (EDMD eigenfunction identifies \(f_k \approx 605\,\mathrm{Hz}\))
+        \end{column}
+        \begin{column}{0.44\textwidth}
+            \begin{block}{Data collection}
+                \begin{itemize}
+                    \item Four regimes, \(5000\) samples each
+                    \item \(\approx 30\,\mathrm{kHz}\) via direct ADC
+                          register reads on the R4 Minima
+                          (bypasses \texttt{analogRead()} overhead)
+                    \item Signals: \(x = V_{C_1},\;
+                                    y = V_{C_2},\;
+                                    z = I_L\)
+                    \item Consecutive snapshot pairs
+                          \((x_k, x_{k+1})\) passed directly to EDMD
+                \end{itemize}
+            \end{block}
+
+            \begin{alertblock}{Key point}
+                Sensitive dependence means trajectories diverge on
+                timescale \(\sim 1/\lambda_1\); no long-range
+                prediction is possible in state space.
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 \begin{frame}{Measured Route to Chaos}
     \centering
     \includegraphics[width=0.87\textwidth,height=0.76\textheight,keepaspectratio]{MeasuredChua.png}
