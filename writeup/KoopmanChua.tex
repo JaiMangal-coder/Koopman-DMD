@@ -169,13 +169,12 @@ $5000$ samples were recorded at a sampling frequency of roughly $30$\,kHz, then 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\textwidth]{MeasuredChua.png}
+    \includegraphics[width=0.6\textwidth]{MeasuredChua.png}
     \caption{Phase portraits ($x$ versus $y$) of the four measured regimes. The fixed-point regime (top left) shows scatter around a single point, indicating that the trajectory has settled to an equilibrium with measurement noise. The limit cycle (top right) traces a single closed loop, the geometric signature of sustained periodic oscillation. The period-doubled regime (bottom left) traces a doubled loop --- the trajectory must complete two passes before returning to its starting point. The double-scroll regime (bottom right) shows the iconic two-lobe chaotic attractor that distinguishes Chua's circuit. These four panels illustrate the qualitative progression through the route to chaos in raw state space, before any Koopman analysis is applied.}
     \label{fig:measured-data}
 \end{figure}
 
 \section{EDMD Analysis of the Four Regimes}
-
 \subsection{Choice of Dictionary}
 Because EDMD depends strongly on the observable dictionary, part of the analysis focused on comparing different families of observables. The implementation includes five families: linear (the raw state), polynomial (monomials of total degree at most $d$), radial basis function (Gaussian bumps with $k$-means centers), Chua-matched piecewise-linear (the seven observables built from the kink terms $|x_1 \pm 1|$ and $x_1 |x_1 \pm 1|$), and a ``full'' family that combines polynomial, RBF, and piecewise-linear terms. The Chua-specific observables are motivated by the piecewise-linear nonlinearity in the circuit, so they are expected to capture the dynamics more efficiently than a completely generic basis. This follows the broader EDMD philosophy that approximation quality depends not only on the data, but on whether the chosen observables are rich enough to represent the important Koopman-invariant structures \citep{williams2015}.
 
