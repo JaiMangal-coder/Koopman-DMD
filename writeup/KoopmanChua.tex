@@ -27,7 +27,7 @@
 \maketitle
 
 \begin{abstract}
-The Koopman operator provides a way to study nonlinear dynamical systems through a linear, but generally infinite-dimensional, perspective \citep{koopman1931}. Instead of evolving the state directly, the Koopman framework evolves observables of the state. This is appealing in nonlinear dynamics because spectral ideas such as eigenvalues, eigenfunctions, and modes can then be used even when the original system is nonlinear. In this project we first introduce the Koopman operator and show a simple example in which a nonlinear system can be made closed by augmenting the state with one nonlinear observable. We then briefly describe Extended Dynamic Mode Decomposition (EDMD), which approximates the Koopman operator from data \citep{williams2015}. In the second half of the paper we apply EDMD to experimental data from Chua's circuit measured using an Arduino R4 Minima. We analyze four regimes --- fixed point, limit cycle, period-doubled oscillation, and double-scroll chaos --- and use Koopman eigenvalues, reconstructions, dictionary sweeps, and eigenfunction coloring to show what the Koopman viewpoint reveals about the route to chaos.
+The Koopman operator provides a way to study nonlinear dynamical systems through a linear, but generally infinite-dimensional, perspective \citep{koopman1931}. Instead of evolving the state directly, the Koopman framework evolves observables of the state. This is appealing in nonlinear dynamics because spectral ideas such as eigenvalues, eigenfunctions, and modes can then be used even when the original system is nonlinear. We first introduce the Koopman operator and show a simple example in which a nonlinear system can be made closed by augmenting the state with one nonlinear observable, then describe Extended Dynamic Mode Decomposition (EDMD), which approximates the Koopman operator from data \citep{williams2015}. We then apply EDMD to experimental data from Chua's circuit measured using an Arduino R4 Minima, analyzing four regimes --- fixed point, limit cycle, period-doubled oscillation, and double-scroll chaos --- and use Koopman eigenvalues, reconstructions, dictionary sweeps, and eigenfunction coloring to show what the Koopman viewpoint reveals about the route to chaos.
 \end{abstract}
 
 \section{Introduction}
@@ -99,13 +99,15 @@ This is an exact finite-dimensional Koopman-invariant subspace. Although the ori
 This example also clarifies an important point. Koopman theory does not say that every nonlinear system has a low-dimensional exact linear representation. Rather, it says that nonlinear systems can be studied through linear evolution of observables, and in favorable cases a finite dictionary of observables may capture a useful approximation.
 
 \subsection{Koopman Modes, Eigenvalues, and Interpretation}
-If a vector of observables $\psi(x)$ can be expanded in terms of Koopman eigenfunctions, then the dynamics take the form of a modal decomposition. In discrete time, one may write schematically
+If a vector of observables $\psi(x)$ can be expanded in terms of Koopman eigenfunctions, then the dynamics take the form of a modal decomposition:
 \begin{equation}
-    \psi(x_n) \approx \sum_{k} \lambda_k^n \, \xi_k(x_0) \, \phi_k,
+    \psi(x_n) \approx \sum_{k} a_k \,\lambda_k^n \,\phi_k,
+    \qquad a_k = \xi_k(x_0),
+    \label{eq:modal-expansion}
 \end{equation}
-where $\lambda_k$ are Koopman eigenvalues, $\xi_k$ are eigenfunctions, and $\phi_k$ are mode vectors. The eigenvalues indicate decay, growth, or oscillation. Complex conjugate eigenvalue pairs correspond to oscillatory behavior, and for periodic dynamics one expects eigenvalues near the unit circle.
+where $\lambda_k$ are Koopman eigenvalues, $\xi_k$ are eigenfunctions evaluated at the initial state, and $\phi_k$ are Koopman \emph{modes}. To recover physical state coordinates, one applies a selector matrix $C$ that picks out the original states from the lifted vector, giving $x_n \approx \sum_k a_k \,\lambda_k^n \,(C \phi_k)$; the vectors $C\phi_k$ then record how strongly each measured state participates in the $k$-th eigenfunction.
 
-This spectral language is especially attractive in nonlinear dynamics because it lets us discuss fixed points, limit cycles, and more complicated attractors using a common linear vocabulary, even when the original equations are nonlinear.
+The eigenvalues indicate decay, growth, or oscillation: complex conjugate pairs correspond to oscillatory behavior, and for periodic dynamics one expects eigenvalues near the unit circle. This spectral language is especially attractive in nonlinear dynamics because it lets us discuss fixed points, limit cycles, and more complicated attractors using a common linear vocabulary, even when the original equations are nonlinear.
 
 \subsection{Brief Description of EDMD}
 Since the Koopman Operator is infinite-dimensional, practical computation requires a
@@ -132,7 +134,12 @@ EDMD then computes a matrix $K$ such that
 \begin{equation}
     \Psi_Y \approx K \Psi_X.
 \end{equation}
-In our implementation this approximation is obtained by least squares with truncated SVD regularization. The eigenvalues and eigenvectors of $K$ approximate Koopman spectral data. The quality of the approximation depends heavily on the chosen dictionary: if the observables reflect the structure of the nonlinear system, the lifted linear model can be much more informative.
+In our implementation this approximation is obtained by least squares with truncated SVD regularization. The eigenvalues and eigenvectors of $K$ approximate Koopman spectral data: its right eigenvectors, collected as columns of $\Phi$, are the modes $\phi_k$ in~\eqref{eq:modal-expansion}, while the rows of $W = \Phi^{+}$ form the dual basis of left eigenvectors. The $k$-th Koopman eigenfunction can then be evaluated along any trajectory as
+\begin{equation}
+    \xi_k(x_n) = w_k^\top \psi(x_n),
+    \label{eq:eigenfunction-from-data}
+\end{equation}
+where $w_k$ is the $k$-th row of $W$. The quality of the approximation depends heavily on the chosen dictionary: if the observables reflect the structure of the nonlinear system, the lifted linear model can be much more informative.
 
 \section{Experimental System: Chua's Circuit}
 
@@ -142,16 +149,16 @@ Chua's circuit is a standard example in nonlinear dynamics because it exhibits s
 At the center of the circuit is its nonlinear element, commonly called the Chua diode. Despite the name, this is not an ordinary semiconductor diode, but an active nonlinear resistor with a piecewise-linear current-voltage characteristic \citep{chua1986,matsumoto1985}. That nonlinearity is what gives the circuit its rich behavior. The slope changes in the Chua diode produce the switching structure that underlies the double-scroll attractor, and they also motivate the piecewise-linear observables used later in the EDMD dictionaries.
 
 \subsection{Data Collection}
-The experimental data in this project were collected from Chua's circuit using an Arduino R4 Minima. Chua's circuit is one of the canonical low-dimensional electronic systems exhibiting chaos and was developed as a simple electronic realization of rich nonlinear dynamics \citep{chua1986,matsumoto1985}. In this implementation, the inductor was realized as a gyrator built from two op amps, and the Chua diode was also implemented using two op amps to produce the required nonlinear piecewise-linear response. This allowed the full circuit to be constructed from active analog building blocks while preserving the characteristic dynamics of the standard Chua design.
+The experimental data were collected from Chua's circuit using an Arduino R4 Minima. In this implementation, the inductor was realized as a gyrator built from two op amps, and the Chua diode was also implemented using two op amps to produce the required piecewise-linear response. This allowed the full circuit to be constructed from active analog building blocks while preserving the dynamics of the standard Chua design.
 
-To interface the analog circuit with the microcontroller, additional signal-conditioning stages were required. Summing amplifiers and diode clamps were used to shift and limit the measured voltages so that they lay within the readable range of the Arduino ADC. This step was necessary because the native circuit voltages are bipolar, while the Arduino input expects a bounded unipolar voltage range. After conditioning, the Arduino sampled three measured signals, denoted here by $x$, $y$, and $z$, corresponding to the circuit state coordinates used throughout the analysis. The implementation of Chua's circuit with easy-to-find component values results in very fast dynamics. To overcome the issue of Arduino's analogRead() function and ADC taking too long due to overhead, we read directly from the R4's registers. For each regime, $5000$ samples were recorded at a sampling frequency of roughly $30$kHz.  :
+To interface the analog circuit with the microcontroller, additional signal-conditioning stages were required. Summing amplifiers and diode clamps were used to shift and limit the measured voltages so that they lay within the readable range of the Arduino ADC, since the native circuit voltages are bipolar while the Arduino input expects a bounded unipolar range. After conditioning, the Arduino sampled three measured signals, denoted here by $x$, $y$, and $z$, corresponding to the state coordinates used throughout the analysis. With easy-to-find component values, Chua's circuit produces very fast dynamics; to keep up, we bypassed the Arduino \texttt{analogRead()} overhead and read directly from the R4's ADC registers. For each of the four regimes
 \begin{itemize}[leftmargin=1.5em]
     \item fixed point,
     \item limit cycle,
     \item period-doubled oscillation,
-    \item double-scroll chaotic regime.
+    \item double-scroll chaotic regime,
 \end{itemize}
-These measurements were saved as time series and then organized into snapshot pairs for EDMD.
+$5000$ samples were recorded at a sampling frequency of roughly $30$\,kHz, then organized into snapshot pairs for EDMD.
 
 \begin{figure}[H]
     \centering
@@ -175,7 +182,7 @@ Because EDMD depends strongly on the observable dictionary, part of the analysis
 This comparison is important conceptually. Koopman theory is not a black-box replacement for nonlinear dynamics. Rather, it is a framework in which physical insight enters through the observables one chooses to evolve.
 
 \subsection{Dictionary Sweep: Accuracy Versus Cost}
-To quantify the effect of dictionary choice, we performed a sweep over dictionary families and sizes and measured the relative one-step error in lifted space together with computation time. Five dictionary families were compared: linear (the raw state, no constant), piecewise-linear (the seven Chua-matched observables built from the kink terms), polynomial (monomials up to a chosen degree), radial basis function with $k$-means centers, and ``full'' (polynomial combined with optional RBF and PWL terms). For each regime the data were min-max normalized to $[-1,1]$ before lifting, so that high-degree monomials remain $O(1)$ and the Gram matrix stays well conditioned.
+To quantify the effect of dictionary choice, we performed a sweep over the five families above and over dictionary sizes, measuring the relative one-step error in lifted space together with computation time. For each regime the data were min-max normalized to $[-1,1]$ before lifting, so that high-degree monomials remain $O(1)$ and the Gram matrix stays well conditioned.
 
 The results are shown in Figure~\ref{fig:dictionary-sweep}. The expected trend, that richer dictionaries reduce one-step prediction error, is visible across all four regimes: the polynomial, RBF, and full families all improve substantially as $N_\psi$ grows, with the chaotic double-scroll regime showing the largest absolute improvement because it has the most complex spectral content to capture. The linear dictionary saturates at relatively high error in every regime, confirming that purely linear observables cannot describe the Chua dynamics.
 
@@ -205,16 +212,7 @@ These predictions are borne out in Figure~\ref{fig:eigenvalues}. The fixed-point
 \end{figure}
 
 \subsection{Period-Doubled Reconstruction from Koopman Modes}
-Beyond reading off eigenvalues, the Koopman decomposition can be used to reconstruct the measured state directly. Using the eigenvalue/eigenvector pairs $(\lambda_k, \phi_k)$ of the EDMD matrix $K$, the lifted dynamics admit the modal expansion
-\begin{equation}
-    \psi(x_n) \approx \sum_k a_k \,\lambda_k^n \,\phi_k,
-    \qquad a_k = (\Phi^{+} \psi(x_0))_k,
-\end{equation}
-and projecting back to physical state coordinates with the selector matrix $C$ that picks out $x_1, x_2, x_3$ from the dictionary gives
-\begin{equation}
-    x_n \approx \sum_k a_k \,\lambda_k^n \,(C \phi_k).
-\end{equation}
-The vectors $v_k = C \phi_k \in \mathbb{R}^3$ are the Koopman \emph{modes}: they record how strongly each of the three measured states participates in the $k$-th eigenfunction. The scalar amplitude $a_k \lambda_k^n$ then drives that mode in time.
+Beyond reading off eigenvalues, the modal expansion~\eqref{eq:modal-expansion} can be used to reconstruct the measured state directly. With the EDMD matrix $K$, its right eigenvectors $\phi_k$, and the amplitudes $a_k = (\Phi^{+} \psi(x_0))_k$ in hand, projecting back through the selector $C$ gives $x_n \approx \sum_k a_k \,\lambda_k^n \,(C \phi_k)$.
 
 The period-doubled regime is particularly instructive because its spectral picture reflects the bifurcation directly. The dominant oscillatory content is no longer just the original fundamental frequency $f_0$ inherited from the limit cycle; instead, the leading conjugate pair sits near $f_0/2$, the subharmonic that is the hallmark of period doubling. The script ranks bounded modes by their contribution to the $x$-state energy, taking conjugate pairs together so that real-valued reconstructions are preserved, and selects the top ten such modes for comparison with the measured state.
 
@@ -232,19 +230,9 @@ The clearest geometric test of the reconstruction is the phase plane. A period-d
 \subsection{Double Scroll and Eigenfunction Coloring}
 The chaotic double-scroll regime is the most visually striking part of Chua's circuit, but it is also where the Koopman viewpoint becomes especially insightful. In raw state space the trajectory wanders unpredictably between two lobes, and no individual voltage---$x$, $y$, or $z$---cleanly distinguishes them. The two lobes overlap in every linear projection: a threshold on $x$ alone, for example, will incorrectly assign points near the center of the attractor because both lobes pass through that region. This is a fundamental limitation of working directly with state coordinates in a chaotic system.
 
-The Koopman framework offers a different approach. Rather than looking for a separator in the original state space, we look for an eigenfunction of the Koopman operator, a nonlinear observable that evolves by simple multiplication at each timestep. If $\xi_k$ denotes such an eigenfunction, it satisfies
-\begin{equation}
-    \xi_k(x_{n+1}) = \lambda_k \,\xi_k(x_n),
-    \label{eq:eigenfunction}
-\end{equation}
-so that $\xi_k(x_n) = \lambda_k^n \,\xi_k(x_0)$. The state $x_n$ itself evolves chaotically, but the scalar $\xi_k(x_n)$ executes a rigid rotation in the complex plane at the angular frequency $\arg(\lambda_k)$ per timestep. This is precisely the Koopman linearity guarantee: nonlinear dynamics in state space become linear dynamics in observable space.
+The Koopman framework offers a different approach. Rather than looking for a separator in the original state space, we look for an eigenfunction of the Koopman operator, a nonlinear observable that evolves by simple multiplication at each timestep. By definition $\xi_k(x_{n+1}) = \lambda_k \,\xi_k(x_n)$, so that $\xi_k(x_n) = \lambda_k^n \,\xi_k(x_0)$: the state $x_n$ itself evolves chaotically, but the scalar $\xi_k(x_n)$ executes a rigid rotation in the complex plane at angular frequency $\arg(\lambda_k)$ per timestep. This is precisely the Koopman linearity guarantee: nonlinear dynamics in state space become linear dynamics in observable space.
 
-\paragraph{Computing eigenfunctions from data.}
-EDMD produces the finite Koopman matrix $K$ and its eigenvector matrix $\Phi$ (columns are right eigenvectors). The corresponding left eigenvectors, collected as rows of $W = \Phi^{+}$, provide the dual basis. The $k$-th Koopman eigenfunction evaluated along the trajectory is then
-\begin{equation}
-    \xi_k(x_n) = w_k^\top \psi(x_n),
-\end{equation}
-where $w_k$ is the $k$-th row of $W$ and $\psi(x_n)$ is the lifted dictionary vector at snapshot $n$. Evaluating this for every snapshot gives the full time history of $\xi_k$ along the measured attractor. The eigenfunction selected for visualization is the bounded oscillatory mode with the highest variance in $\mathrm{Re}(\xi_k)$, which is the mode that most strongly discriminates different regions of the attractor. For this regime a degree-3 polynomial dictionary augmented with the four piecewise-linear Chua kink terms was used, since a small dictionary does not provide enough expressive power to resolve the eigenfunction structure of the double scroll.
+We compute $\xi_k$ along the measured trajectory using~\eqref{eq:eigenfunction-from-data} and select for visualization the bounded oscillatory mode with the highest variance in $\mathrm{Re}(\xi_k)$, which is the mode that most strongly discriminates different regions of the attractor. For this regime a degree-3 polynomial dictionary augmented with the four piecewise-linear Chua kink terms was used, since a small dictionary does not provide enough expressive power to resolve the eigenfunction structure of the double scroll.
 
 \paragraph{Interpreting the four panels.}
 The visualization in Figure~\ref{fig:double-scroll-coloring} presents four complementary views of the same eigenfunction.
@@ -253,7 +241,7 @@ The top two panels color every attractor point by $\arg(\xi_k)$ using a cyclic (
 
 The bottom-left panel reduces the complex eigenfunction to a binary label: points where $\mathrm{Re}(\xi_k) \geq 0$ are shown in blue, and those where $\mathrm{Re}(\xi_k) < 0$ in red. This is the most direct test of the eigenfunction's utility as a lobe separator. If it succeeds, blue and red should cleanly partition the two scrolls in the full three-dimensional state space, achieving in a single learned observable what no voltage threshold can accomplish. The key is that $\xi_k$ is a nonlinear function of all three state variables: the EDMD procedure has found, from data alone, the combination of polynomial and piecewise-linear terms that most cleanly partitions the attractor.
 
-The bottom-right panel shows $\mathrm{Re}(\xi_k)$ and $\mathrm{Im}(\xi_k)$ as time series. Despite the irregular switching visible in the raw voltages, the eigenfunction trace should show approximately sinusoidal oscillation whose real part changes sign each time the trajectory transitions between lobes. This is the time-domain signature of the linear evolution in~\eqref{eq:eigenfunction}: the chaotic switching in physical coordinates maps to a regular phase rotation in the eigenfunction coordinate.
+The bottom-right panel shows $\mathrm{Re}(\xi_k)$ and $\mathrm{Im}(\xi_k)$ as time series. Despite the irregular switching visible in the raw voltages, the eigenfunction trace should show approximately sinusoidal oscillation whose real part changes sign each time the trajectory transitions between lobes. This is the time-domain signature of the linear evolution $\xi_k(x_{n+1}) = \lambda_k \xi_k(x_n)$: the chaotic switching in physical coordinates maps to a regular phase rotation in the eigenfunction coordinate.
 
 \paragraph{Why this demonstrates the advantage of Koopman.}
 The central challenge for any analysis method applied to chaos is that the dynamics are sensitive to initial conditions and superficially irregular. State-space methods that rely on linear combinations of voltages are limited because nonlinear geometric features---such as lobe membership---have no simple linear signature. The Koopman approach circumvents this by explicitly searching the space of nonlinear observables for one that evolves linearly. The eigenfunction coloring demonstrates this advantage concretely: it transforms the question ``which lobe is the trajectory in?'' from an intractable problem in state space into a trivial threshold on a single learned coordinate. Moreover, the eigenvalue $\lambda_k$ associated with that coordinate tells us the frequency at which the trajectory winds around the attractor, providing quantitative dynamical information that is completely invisible in the raw time series.
