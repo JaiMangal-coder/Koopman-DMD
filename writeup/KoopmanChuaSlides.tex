@@ -54,17 +54,17 @@
         \begin{column}{0.48\textwidth}
             \textbf{Linear systems}
             \begin{itemize}
-                \item eigenvalues describe growth, decay, oscillation
-                \item modes decompose the observed motion
-                \item spectra are compact summaries of dynamics
+                \item Eigenvalues describe growth, decay, and oscillation
+                \item Modes decompose the observed motion
+                \item Spectra are compact summaries of dynamics
             \end{itemize}
         \end{column}
         \begin{column}{0.48\textwidth}
             \textbf{Nonlinear systems}
             \begin{itemize}
-                \item fixed points, cycles, bifurcations, chaos
-                \item no global linear modal decomposition in state coordinates
-                \item geometry may be hidden in nonlinear combinations of states
+                \item Fixed points, cycles, bifurcations, and chaos
+                \item No global linear modal decomposition in state coordinates
+                \item Geometry may be hidden in nonlinear combinations of states
             \end{itemize}
         \end{column}
     \end{columns}
@@ -215,10 +215,10 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.44\textwidth}
             \begin{itemize}
-                \item canonical nonlinear circuit with a piecewise-linear Chua diode
-                \item potentiometers used as bifurcation parameters
+                \item Canonical nonlinear circuit with a piecewise-linear Chua diode
+                \item Potentiometers used as bifurcation parameters
                 \item Arduino R4 Minima sampled three conditioned voltages \(x,y,z\)
-                \item four regimes, \(5000\) samples each, roughly \(30\) kHz
+                \item Four regimes, \(5000\) samples each, roughly \(30\) kHz
             \end{itemize}
         \end{column}
         \begin{column}{0.52\textwidth}
@@ -241,11 +241,11 @@
         \begin{column}{0.42\textwidth}
             Dictionaries tested:
             \begin{itemize}
-                \item linear states
-                \item polynomial monomials
-                \item radial basis functions
+                \item Linear states
+                \item Polynomial monomials
+                \item Radial basis functions
                 \item Chua-matched piecewise-linear kink terms
-                \item combined full dictionary
+                \item Combined full dictionary
             \end{itemize}
 
             \vspace{0.15cm}
@@ -276,7 +276,7 @@
 
     \vspace{0.25cm}
     \begin{alertblock}{Practical conclusion}
-        Koopman analysis is not black-box linearization. Physical insight enters through the observable dictionary.
+        Koopman analysis is not automatic linearization. The observable dictionary has to match the dynamics.
     \end{alertblock}
 \end{frame}
 
@@ -313,9 +313,9 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.38\textwidth}
             \begin{itemize}
-                \item top Koopman modes ranked by contribution to \(x\)-state energy
-                \item oscillatory eigenvalues projected back to the unit circle to remove numerical decay
-                \item samples colored by the sign of the \(f_0/2\) eigenfunction
+                \item Top Koopman modes ranked by contribution to \(x\)-state energy
+                \item Oscillatory eigenvalues projected back to the unit circle to remove numerical decay
+                \item Samples colored by the sign of the \(f_0/2\) eigenfunction
             \end{itemize}
 
             \vspace{0.15cm}
@@ -341,9 +341,9 @@
             \]
 
             \begin{itemize}
-                \item phase of \(\xi_k\) gives smooth coloring around the lobes
+                \item Phase of \(\xi_k\) gives smooth coloring around the lobes
                 \item \(\operatorname{sign}(\operatorname{Re}\xi_k)\) separates the scrolls
-                \item real and imaginary parts show near-rotational evolution
+                \item Real and imaginary parts show near-rotational evolution
             \end{itemize}
         \end{column}
         \begin{column}{0.58\textwidth}
