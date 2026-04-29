@@ -242,6 +242,63 @@ sgtitle('Chua Circuit — Largest Lyapunov Exponent (Rosenstein 1993)', ...
         'FontSize',13,'FontWeight','bold');
 saveas(fig3, 'chua_lyapunov.png');
 
+% ── Dedicated double-scroll Lyapunov figure (300 DPI) ───────────────────────
+% Re-runs the Rosenstein computation for reg=4 so this block is independent
+% of loop-variable state.
+ds_reg = 4;
+xyz    = xyz_all{ds_reg};
+N      = size(xyz,1);
+
+x0  = xyz(:,1) - mean(xyz(:,1));
+acf = xcorr(x0, min(N-1,400), 'normalized');
+acf = acf(ceil(end/2):end);
+zc  = find(acf(1:end-1) > 0 & acf(2:end) <= 0, 1);
+if isempty(zc), zc = 30; end
+W   = max(2*zc, 20);
+
+ref_idx   = (1 : N - max_iter)';
+sum_log_d = zeros(max_iter,1);
+cnt       = zeros(max_iter,1);
+for ii = 1:numel(ref_idx)
+    i  = ref_idx(ii);
+    xi = xyz(i,:);
+    d2        = sum((xyz - xi).^2, 2);
+    lo        = max(1, i-W);
+    hi        = min(N, i+W);
+    d2(lo:hi) = inf;
+    [d0_sq, j] = min(d2);
+    if isinf(d0_sq) || d0_sq == 0, continue; end
+    if j + max_iter > N,           continue; end
+    d0 = sqrt(d0_sq);
+    for t = 1:max_iter
+        dt_dist = norm(xyz(i+t,:) - xyz(j+t,:));
+        if dt_dist > 0
+            sum_log_d(t) = sum_log_d(t) + log(dt_dist / d0);
+            cnt(t)       = cnt(t) + 1;
+        end
+    end
+end
+valid_t   = cnt > 0;
+avg_log_d = sum_log_d(valid_t) ./ cnt(valid_t);
+t_vec     = find(valid_t);
+n_fit     = max(5, round(0.25 * numel(t_vec)));
+p_fit_ds  = polyfit(t_vec(1:n_fit)', avg_log_d(1:n_fit)', 1);
+
+fig3b = figure('Name','Lyapunov — Double Scroll','Position',[50 600 800 560]);
+plot(t_vec, avg_log_d, '-', 'Color', colors(ds_reg,:), 'LineWidth', 1.8);
+hold on;
+plot(t_vec(1:n_fit), polyval(p_fit_ds, t_vec(1:n_fit)'), '--k', 'LineWidth', 2.2);
+xlabel('Time steps k', 'FontSize', 12);
+ylabel('avg  ln( d_k / d_0 )', 'FontSize', 12);
+title(sprintf(['Chua Circuit — Largest Lyapunov Exponent (Double Scroll)\n', ...
+               '\\lambda_1 = %+.4f /sample   (%+.1f /s)'], ...
+              lambda1(ds_reg), lambda1_s(ds_reg)), 'FontSize', 13);
+legend('Mean log-divergence', 'Linear fit (initial growth)', ...
+       'Location', 'southeast', 'FontSize', 11);
+grid on;
+set(gca, 'FontSize', 11);
+print(fig3b, 'chua_lyapunov_doublescroll.png', '-dpng', '-r300');
+
 %% ══════════════════════════════════════════════════════════════════════════════
 %% 4.  SUMMARY TABLE
 %% ══════════════════════════════════════════════════════════════════════════════
@@ -271,4 +328,5 @@ fprintf('  With N=1000 pts the box/correlation dimensions of the double scroll\n
 fprintf('  are underestimated vs the known theoretical value D_F ≈ 2.05–2.3.\n');
 fprintf('  Reliable box-counting requires ~10^D pts; a 50k-pt dataset would\n');
 fprintf('  push D_box closer to 2.  The relative ordering across regimes is valid.\n');
-fprintf('\nFigures saved: chua_boxcounting.png, chua_correlation_dim.png, chua_lyapunov.png\n');
+fprintf(['\nFigures saved: chua_boxcounting.png, chua_correlation_dim.png, ', ...
+         'chua_lyapunov.png, chua_lyapunov_doublescroll.png (300 DPI)\n']);
