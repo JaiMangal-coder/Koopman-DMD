@@ -318,9 +318,11 @@
             \end{block}
            
             \vspace{0.2cm}
-            \begin{block}{Characteristic frequency}
-                \(\approx 500\text{--}700\,\mathrm{Hz}\)\\
-                EDMD eigenfunction: \(f_k \approx 605\,\mathrm{Hz}\)
+            \begin{block}{\(D_{\mathrm{box}} > 1\) confirms strange attractor}
+                Non-integer dimension between 1 and 2 signals a fractal
+                geometric structure; underestimate of \(\approx 2.07\)
+                expected at \(N=5000\) pts (reliable scaling requires
+                \(\sim 10^{D}\) points).
             \end{block}
         \end{column}
     \end{columns}
@@ -348,18 +350,21 @@
             \end{itemize}
 
             \vspace{0.2cm}
-            Computed via Sano--Sawada local linear maps with QR
-            re-orthogonalisation; Theiler window set to
-            \(2\times\) first autocorrelation zero-crossing
-            to exclude temporal correlations.
-
-            \vspace{0.1cm}
-            \begin{alertblock}{Double scroll}
-                \([+0.084,\;-0.008,\;-1.223]\)/sample\\
-                \(\Rightarrow D_{\mathrm{KY}} = 2.062\)
-            \end{alertblock}
+           
         \end{column}
     \end{columns}
+    \vspace{0.1cm}
+        \begin{alertblock}{Double scroll}
+            \([\lambda_1,\lambda_2,\lambda_3]
+              = [+0.084,\;-0.008,\;-1.223]\)/sample, \(\lambda_1^{\mathrm{ODE}} = +0.280\)
+            \;(theory: \(0.23\),\;\(\tau = R_{\mathrm{eff}}C_2 = 0.1\,\mathrm{ms}\))\\[3pt]
+            Divergence time:\;
+            \(T_{\mathrm{div}} = 1/\lambda_1 \approx 12\) samples
+            \(\approx 0.40\,\mathrm{ms}\) \(\sim\tfrac{1}{4}\) of one oscillation period
+            \(\Rightarrow\) strongly chaotic\\[3pt]
+            \(\Rightarrow D_{\mathrm{box}} = 1.519\)
+            \;(fractal; limited by \(N=5000\) pts)
+        \end{alertblock}
 \end{frame}
 
 \begin{frame}{Measured Route to Chaos}
