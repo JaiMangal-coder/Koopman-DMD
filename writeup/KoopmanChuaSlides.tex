@@ -54,24 +54,24 @@
         \begin{column}{0.48\textwidth}
             \textbf{Linear systems}
             \begin{itemize}
-                \item Eigenvalues describe growth, decay, and oscillation
-                \item Modes decompose the observed motion
-                \item Spectra are compact summaries of dynamics
+                \item Eigenvalues: growth, decay, oscillation
+                \item Modes: motion as simpler components
+                \item Spectra: compact dynamical summaries
             \end{itemize}
         \end{column}
         \begin{column}{0.48\textwidth}
             \textbf{Nonlinear systems}
             \begin{itemize}
-                \item Fixed points, cycles, bifurcations, and chaos
-                \item No global linear modal decomposition in state coordinates
-                \item Geometry may be hidden in nonlinear combinations of states
+                \item Fixed points, cycles, bifurcations, chaos
+                \item No global modal picture in state coordinates
+                \item Structure may be hidden in nonlinear observables
             \end{itemize}
         \end{column}
     \end{columns}
 
     \vspace{0.45cm}
     \begin{block}{Koopman idea}
-        Instead of evolving the state directly, evolve observables of the state.
+        Evolve observables of the state, not only the state itself.
     \end{block}
 \end{frame}
 
@@ -80,7 +80,7 @@
     \[
         x_{n+1} = F(x_n), \qquad x_n \in \R^d,
     \]
-    an observable is a function \(g:\R^d \to \C\). The Koopman operator acts by composition:
+    An observable is a function \(g:\R^d \to \C\):
     \[
         (\Koop g)(x) = g(F(x)).
     \]
@@ -93,12 +93,12 @@
                     \Koop(a g_1 + b g_2)
                     = a\Koop g_1 + b\Koop g_2.
                 \]
-                The operator is linear even when \(F\) is nonlinear.
+                Linear operator, nonlinear system.
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{block}{Price paid}
-                \(\Koop\) acts on a function space, which is generally infinite-dimensional.
+                The function space is generally infinite-dimensional.
             \end{block}
         \end{column}
     \end{columns}
@@ -122,24 +122,24 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.32\textwidth}
             \begin{block}{\(|\lambda| < 1\)}
-                decay toward an attracting set
+                Decay
             \end{block}
         \end{column}
         \begin{column}{0.32\textwidth}
             \begin{block}{\(|\lambda| \approx 1\)}
-                sustained oscillation or phase-like behavior
+                Sustained oscillation
             \end{block}
         \end{column}
         \begin{column}{0.32\textwidth}
             \begin{block}{\(\arg(\lambda)\)}
-                angular frequency per sample
+                Frequency per sample
             \end{block}
         \end{column}
     \end{columns}
 
     \vspace{0.25cm}
     \begin{alertblock}{Interpretation}
-        The state can behave nonlinearly while an eigenfunction coordinate evolves by scalar multiplication.
+        Nonlinear motion in state space can become scalar multiplication in an eigenfunction coordinate.
     \end{alertblock}
 \end{frame}
 
@@ -150,14 +150,14 @@
         \qquad
         \dot{x}_2 = \lambda(x_2 - x_1^2).
     \]
-    In the original state variables the system is nonlinear, but the lifted observable vector
+    Add one nonlinear observable:
     \[
         \psi(x) =
         \begin{bmatrix}
             x_1 & x_2 & x_1^2
         \end{bmatrix}^{\top}
     \]
-    evolves linearly:
+    The lifted state closes linearly:
     \[
         \frac{d}{dt}
         \begin{bmatrix}
@@ -175,11 +175,11 @@
     \]
 
     \vspace{0.1cm}
-    This is the ideal case EDMD tries to approximate from data.
+    This is the finite-dimensional ideal EDMD tries to approximate.
 \end{frame}
 
 \begin{frame}{EDMD: Koopman from Snapshot Data}
-    Choose a finite dictionary of observables
+    Choose a finite observable dictionary:
     \[
         \psi(x) =
         \begin{bmatrix}
@@ -187,7 +187,7 @@
         \end{bmatrix}^{\top}.
     \]
 
-    Given consecutive snapshot pairs \((x_k,x_{k+1})\),
+    Build lifted snapshot matrices:
     \[
         \Psi_X =
         \begin{bmatrix}
@@ -207,7 +207,7 @@
 
     \vspace{0.15cm}
     \begin{block}{In this project}
-        \(K\) was computed by least squares with truncated SVD regularization; its eigenvalues, modes, and left eigenvectors approximate Koopman spectral data.
+        Least squares with truncated SVD; eigenvalues, modes, and eigenfunctions come from \(K\).
     \end{block}
 \end{frame}
 
@@ -215,10 +215,10 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.44\textwidth}
             \begin{itemize}
-                \item Canonical nonlinear circuit with a piecewise-linear Chua diode
-                \item Potentiometers used as bifurcation parameters
-                \item Arduino R4 Minima sampled three conditioned voltages \(x,y,z\)
-                \item Four regimes, \(5000\) samples each, roughly \(30\) kHz
+                \item Piecewise-linear Chua diode
+                \item Potentiometers set the regime
+                \item Arduino R4 Minima records \(x,y,z\)
+                \item \(5000\) samples/regime at \(\approx 30\) kHz
             \end{itemize}
         \end{column}
         \begin{column}{0.52\textwidth}
@@ -231,7 +231,8 @@
 \begin{frame}{Chua's Circuit: Governing Equations}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.50\textwidth}
-            Three coupled ODEs in \(x=V_{C_1},\,y=V_{C_2},\,z=I_L\):
+            State variables:
+            \(x=V_{C_1},\,y=V_{C_2},\,z=I_L\)
             \[
                 \dot x=\alpha[y-x-f(x)]
             \]
@@ -243,7 +244,7 @@
             \]
 
             \vspace{0.2cm}
-            Piecewise-linear Chua diode characteristic:
+            Chua diode nonlinearity:
             \[
                 f(x) = G_b x
                   + \frac{G_a-G_b}{2}
@@ -254,21 +255,21 @@
         \end{column}
         \begin{column}{0.46\textwidth}
             \centering
-            \includegraphics[height=0.5\textheight]{writeup/KppmanChuaCircuitDiagram.png}
+            \includegraphics[height=0.5\textheight]{KppmanChuaCircuitDiagram.png}
 
             \vspace{0.05cm}
-            {\footnotesize Phase portraits \(x\)--\(y\) across four regimes.}
+            {\footnotesize Circuit used for the measured Chua data.}
         \end{column}
     \end{columns}
     \begin{block}{Our implementation}
-        Inductor realized as a \textbf{gyrator} (two op-amps); Chua diode also op-amp based. Summing amplifiers shift bipolar voltages into the Arduino ADC window \([0,5]\,\mathrm{V}\).
+        Op-amp gyrator for the inductor; op-amp Chua diode; voltage shifting into the Arduino ADC range.
     \end{block}
 \end{frame}
 
 \begin{frame}{Chua's Circuit: Dynamical Characteristics}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.50\textwidth}
-            \textbf{Bifurcation route} (resistance \(R\) via potentiometer):
+            \textbf{Bifurcation route}
             \[
                 \text{fixed pt}
                 \;\xrightarrow{\;R\downarrow\;}\;
@@ -278,16 +279,12 @@
                 \;\to\;
                 \text{chaos}
             \]
-            \textbf{Measured Lyapunov spectrum} (double scroll, per sample):
+            \textbf{Double-scroll Lyapunov spectrum}
             \[
                 [\lambda_1,\,\lambda_2,\,\lambda_3]
                 = [+0.084,\; -0.008,\; -1.223]
             \]
-            \[
-                \lambda_1^{\mathrm{ODE}} = +0.280
-                \quad(\text{theory: }0.23)
-            \]
-            \textbf{Measured fractal dimensions} (double scroll):
+            \textbf{Measured dimensions}
             \begin{center}
                 \small
                 \begin{tabular}{lcc}
@@ -300,29 +297,20 @@
                     \bottomrule
                 \end{tabular}
             \end{center}
-            {\footnotesize Underestimates of \(\approx 2.07\) expected at \(N=5000\) pts.}
         \end{column}
         \begin{column}{0.46\textwidth}
             \begin{block}{Data collection}
                 \begin{itemize}
-                    \item Four regimes, \(5000\) samples each
-                    \item \(\approx 30\,\mathrm{kHz}\) via direct ADC
-                          register reads on the R4 Minima
-                          (bypasses \texttt{analogRead()} overhead)
-                    \item Signals: \(x = V_{C_1},\;
-                                    y = V_{C_2},\;
-                                    z = I_L\)
-                    \item Consecutive snapshot pairs
-                          \((x_k, x_{k+1})\) passed directly to EDMD
+                    \item Four regimes
+                    \item \(5000\) samples each
+                    \item \(\approx 30\,\mathrm{kHz}\)
+                    \item Snapshot pairs \((x_k,x_{k+1})\)
                 \end{itemize}
             \end{block}
            
             \vspace{0.2cm}
-            \begin{block}{\(D_{\mathrm{box}} > 1\) confirms strange attractor}
-                Non-integer dimension between 1 and 2 signals a fractal
-                geometric structure; underestimate of \(\approx 2.07\)
-                expected at \(N=5000\) pts (reliable scaling requires
-                \(\sim 10^{D}\) points).
+            \begin{block}{Interpretation}
+                Positive \(\lambda_1\) and non-integer dimension support the double scroll as a strange attractor.
             \end{block}
         \end{column}
     \end{columns}
@@ -333,20 +321,15 @@
         \begin{column}{0.54\textwidth}
             \centering
             \includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]%
-                {/chua_analysis/chua_lyapunov_bar.png}
+                {../chua_analysis/chua_lyapunov_bar.png}
         \end{column}
         \begin{column}{0.42\textwidth}
             \textbf{Reading the spectrum:}
             \begin{itemize}
-                \item \(\lambda_1 < 0\): all directions contract
-                      \(\Rightarrow\) \textbf{fixed point} (globally stable)
-                \item \(\lambda_1 \approx 0,\;\lambda_2,\lambda_3 < 0\):
-                      one neutral direction along the orbit
-                      \(\Rightarrow\) \textbf{limit cycle}
-                \item Same pattern, slightly less negative \(\lambda_1\):
-                      \textbf{period-doubled} orbit (still periodic)
-                \item \(\lambda_1 > 0\): exponential divergence
-                      \(\Rightarrow\) \textbf{chaos}
+                \item \(\lambda_1 < 0\): fixed point
+                \item \(\lambda_1 \approx 0\): periodic orbit
+                \item Period-doubled: still periodic
+                \item \(\lambda_1 > 0\): chaos
             \end{itemize}
 
             \vspace{0.2cm}
@@ -356,15 +339,15 @@
     \vspace{0.1cm}
         \begin{alertblock}{Double scroll}
             \([\lambda_1,\lambda_2,\lambda_3]
-              = [+0.084,\;-0.008,\;-1.223]\)/sample, \(\lambda_1^{\mathrm{ODE}} = +0.280\)
-            \;(theory: \(0.23\),\;\(\tau = R_{\mathrm{eff}}C_2 = 0.1\,\mathrm{ms}\))\\[3pt]
-            Divergence time:\;
-            \(T_{\mathrm{div}} = 1/\lambda_1 \approx 12\) samples
-            \(\approx 0.40\,\mathrm{ms}\) \(\sim\tfrac{1}{4}\) of one oscillation period
-            \(\Rightarrow\) strongly chaotic\\[3pt]
-            \(\Rightarrow D_{\mathrm{box}} = 1.519\)
-            \;(fractal; limited by \(N=5000\) pts)
+              = [+0.084,\;-0.008,\;-1.223]\)/sample.
+            Positive largest exponent means nearby trajectories separate exponentially.
         \end{alertblock}
+\end{frame}
+
+\begin{frame}{Largest Lyapunov Exponent --- Double Scroll}
+    \centering
+    \includegraphics[width=0.82\textwidth,height=0.78\textheight,keepaspectratio]%
+        {../chua_analysis/chua_lyapunov_doublescroll.png}
 \end{frame}
 
 \begin{frame}{Measured Route to Chaos}
@@ -390,13 +373,13 @@
 
     \vspace{0.1cm}
     \centering
-    {\small Fixed point \(\rightarrow\) limit cycle \(\rightarrow\) period-doubled orbit \(\rightarrow\) double-scroll chaos.}
+    {\small Fixed point \(\rightarrow\) limit cycle \(\rightarrow\) period doubling \(\rightarrow\) double-scroll chaos.}
 \end{frame}
 
 \begin{frame}{Dictionary Choice Matters}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.42\textwidth}
-            Dictionaries tested:
+            Tested dictionaries:
             \begin{itemize}
                 \item Linear states
                 \item Polynomial monomials
@@ -406,7 +389,7 @@
             \end{itemize}
 
             \vspace{0.15cm}
-            Data were normalized to \([-1,1]\) before lifting.
+            Normalized to \([-1,1]\) before lifting.
         \end{column}
         \begin{column}{0.55\textwidth}
             \centering
@@ -419,21 +402,19 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.48\textwidth}
             \begin{block}{Accuracy}
-                Richer dictionaries reduce lifted one-step error across regimes.
-                The improvement is largest for the double-scroll data.
+                Richer dictionaries reduce one-step error.
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{block}{Cost}
-                EDMD solve time increases with the number of observables \(N_\psi\);
-                richer dictionaries are not free.
+                Solve time grows with \(N_\psi\).
             \end{block}
         \end{column}
     \end{columns}
 
     \vspace{0.25cm}
     \begin{alertblock}{Practical conclusion}
-        Koopman analysis is not automatic linearization. The observable dictionary has to match the dynamics.
+        The observable dictionary has to match the dynamics.
     \end{alertblock}
 \end{frame}
 
@@ -442,25 +423,25 @@
     \includegraphics[width=0.82\textwidth,height=0.68\textheight,keepaspectratio]{eigenvalues.png}
 
     \vspace{0.05cm}
-    Degree-3 polynomial dictionary, \(N_\psi=20\); unit circle shown for reference.
+    Degree-3 polynomial dictionary; unit circle shown for reference.
 \end{frame}
 
 \begin{frame}{Reading the Spectrum}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.48\textwidth}
             \begin{block}{Fixed point}
-                Real eigenvalues inside the unit circle: non-oscillatory decay.
+                Real eigenvalues inside the unit circle.
             \end{block}
             \begin{block}{Limit cycle}
-                Conjugate pairs near roots of unity: sustained periodic motion.
+                Conjugate pairs near roots of unity.
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
             \begin{block}{Period doubled}
-                New intermediate-angle conjugate pairs: subharmonic content at half the original frequency.
+                New intermediate-angle conjugate pairs.
             \end{block}
             \begin{block}{Double scroll}
-                Broad spectrum on and inside the unit circle: no finite set of clean periodic frequencies captures the chaos.
+                Broad spread on and inside the unit circle.
             \end{block}
         \end{column}
     \end{columns}
@@ -470,14 +451,14 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.38\textwidth}
             \begin{itemize}
-                \item Top Koopman modes ranked by contribution to \(x\)-state energy
-                \item Oscillatory eigenvalues projected back to the unit circle to remove numerical decay
-                \item Samples colored by the sign of the \(f_0/2\) eigenfunction
+                \item Modes ranked by \(x\)-state energy
+                \item Oscillatory eigenvalues projected to unit circle
+                \item Color from the \(f_0/2\) eigenfunction
             \end{itemize}
 
             \vspace{0.15cm}
             \begin{block}{Result}
-                Ten modes recover the two-loop topology of the period-doubled orbit.
+                Ten modes recover the doubled-loop geometry.
             \end{block}
         \end{column}
         \begin{column}{0.58\textwidth}
@@ -490,7 +471,7 @@
 \begin{frame}{Double Scroll: Eigenfunctions as Hidden Coordinates}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.38\textwidth}
-            The selected eigenfunction had
+            Selected eigenfunction:
             \[
                 |\lambda_k| = 0.957,
                 \qquad
@@ -498,9 +479,9 @@
             \]
 
             \begin{itemize}
-                \item Phase of \(\xi_k\) gives smooth coloring around the lobes
-                \item \(\operatorname{sign}(\operatorname{Re}\xi_k)\) separates the scrolls
-                \item Real and imaginary parts show near-rotational evolution
+                \item Phase gives smooth lobe coloring
+                \item \(\operatorname{sign}(\operatorname{Re}\xi_k)\) separates scrolls
+                \item Time trace shows near-rotation
             \end{itemize}
         \end{column}
         \begin{column}{0.58\textwidth}
@@ -512,16 +493,15 @@
 
 \begin{frame}{Project Conclusions}
     \begin{enumerate}
-        \item Koopman operators give a linear spectral language for nonlinear dynamics by lifting from states to observables.
-        \item EDMD makes this practical from measured data, but the result depends strongly on dictionary choice.
-        \item For Chua's circuit, Koopman spectra match the qualitative route to chaos:
-        fixed point, limit cycle, period doubling, then double scroll.
-        \item In the chaotic regime, eigenfunctions reveal coherent geometry that is not obvious in raw voltage coordinates.
+        \item Koopman analysis lifts nonlinear dynamics into observable space.
+        \item EDMD estimates this structure directly from measurements.
+        \item Spectra track the route from fixed point to chaos.
+        \item Eigenfunctions reveal coherent geometry in the double scroll.
     \end{enumerate}
 
     \vspace{0.25cm}
     \begin{alertblock}{Final takeaway}
-        The Koopman viewpoint organizes the data: it identifies oscillatory content in periodic regimes and hidden coordinates on the chaotic attractor.
+        The Koopman viewpoint connects spectra, geometry, and measured nonlinear behavior.
     \end{alertblock}
 \end{frame}
 
@@ -548,12 +528,6 @@
         \newblock A chaotic attractor from Chua's circuit.
         \newblock \emph{IEEE Transactions on Circuits and Systems}, 1984.
     \end{thebibliography}
-\end{frame}
-
-\begin{frame}{Largest Lyapunov Exponent --- Double Scroll}
-    \centering
-    \includegraphics[width=0.82\textwidth,height=0.78\textheight,keepaspectratio]%
-        {/chua_analysis/chua_lyapunov_doublescroll.png}
 \end{frame}
 
 \end{document}
