@@ -267,37 +267,42 @@
 
 \begin{frame}{Chua's Circuit: Dynamical Characteristics}
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.52\textwidth}
-            \textbf{Route to chaos} (resistance \(R\) via potentiometer):
+        \begin{column}{0.50\textwidth}
+            \textbf{Bifurcation route} (resistance \(R\) via potentiometer):
             \[
-                \text{fixed point}
-                \;\to\; \text{limit cycle}
-                \;\to\; \text{period doubling}
-                \;\to\; \text{chaos}
+                \text{fixed pt}
+                \;\xrightarrow{\;R\downarrow\;}\;
+                \text{limit cycle}
+                \;\to\;
+                \text{period-}\!2
+                \;\to\;
+                \text{chaos}
             \]
-
-            \vspace{0.2cm}
-            \textbf{Double-scroll Lyapunov spectrum:}
+            \textbf{Measured Lyapunov spectrum} (double scroll, per sample):
             \[
-                \lambda_1 \approx +0.18,\quad
-                \lambda_2 \approx 0,\quad
-                \lambda_3 \lesssim -2.4
+                [\lambda_1,\,\lambda_2,\,\lambda_3]
+                = [+0.084,\; -0.008,\; -1.223]
             \]
-
-            \textbf{Kaplan--Yorke dimension:}
             \[
-                D_{\mathrm{KY}}
-                = 2 + \frac{\lambda_1}{|\lambda_3|}
-                \approx 2.07
+                \lambda_1^{\mathrm{ODE}} = +0.280
+                \quad(\text{theory: }0.23)
             \]
-            Fractal attractor — non-integer dimension confirms chaos.
-
-            \vspace{0.2cm}
-            \textbf{Characteristic frequency:}
-            \(\approx 500\text{--}700\,\mathrm{Hz}\)
-            (EDMD eigenfunction identifies \(f_k \approx 605\,\mathrm{Hz}\))
+            \textbf{Measured fractal dimensions} (double scroll):
+            \begin{center}
+                \small
+                \begin{tabular}{lcc}
+                    \toprule
+                    & \(D_{\mathrm{box}}\) & \(D_{\mathrm{corr}}\) \\
+                    Fixed point     & 0.161 & 0.696 \\
+                    Limit cycle     & 1.101 & 1.067 \\
+                    Period-doubled  & 1.052 & 1.214 \\
+                    \textbf{Double scroll}  & \textbf{1.519} & \textbf{1.302} \\
+                    \bottomrule
+                \end{tabular}
+            \end{center}
+            {\footnotesize Underestimates of \(\approx 2.07\) expected at \(N=5000\) pts.}
         \end{column}
-        \begin{column}{0.44\textwidth}
+        \begin{column}{0.46\textwidth}
             \begin{block}{Data collection}
                 \begin{itemize}
                     \item Four regimes, \(5000\) samples each
@@ -311,11 +316,47 @@
                           \((x_k, x_{k+1})\) passed directly to EDMD
                 \end{itemize}
             \end{block}
+           
+            \vspace{0.2cm}
+            \begin{block}{Characteristic frequency}
+                \(\approx 500\text{--}700\,\mathrm{Hz}\)\\
+                EDMD eigenfunction: \(f_k \approx 605\,\mathrm{Hz}\)
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
 
-            \begin{alertblock}{Key point}
-                Sensitive dependence means trajectories diverge on
-                timescale \(\sim 1/\lambda_1\); no long-range
-                prediction is possible in state space.
+\begin{frame}{Lyapunov Spectrum Across All Regimes}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.54\textwidth}
+            \centering
+            \includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]%
+                {/chua_analysis/chua_lyapunov_bar.png}
+        \end{column}
+        \begin{column}{0.42\textwidth}
+            \textbf{Reading the spectrum:}
+            \begin{itemize}
+                \item \(\lambda_1 < 0\): all directions contract
+                      \(\Rightarrow\) \textbf{fixed point} (globally stable)
+                \item \(\lambda_1 \approx 0,\;\lambda_2,\lambda_3 < 0\):
+                      one neutral direction along the orbit
+                      \(\Rightarrow\) \textbf{limit cycle}
+                \item Same pattern, slightly less negative \(\lambda_1\):
+                      \textbf{period-doubled} orbit (still periodic)
+                \item \(\lambda_1 > 0\): exponential divergence
+                      \(\Rightarrow\) \textbf{chaos}
+            \end{itemize}
+
+            \vspace{0.2cm}
+            Computed via Sano--Sawada local linear maps with QR
+            re-orthogonalisation; Theiler window set to
+            \(2\times\) first autocorrelation zero-crossing
+            to exclude temporal correlations.
+
+            \vspace{0.1cm}
+            \begin{alertblock}{Double scroll}
+                \([+0.084,\;-0.008,\;-1.223]\)/sample\\
+                \(\Rightarrow D_{\mathrm{KY}} = 2.062\)
             \end{alertblock}
         \end{column}
     \end{columns}
