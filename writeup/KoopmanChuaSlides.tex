@@ -56,14 +56,14 @@
             \textbf{Linear systems}
             \begin{itemize}
                 \item Eigenvalues: growth, decay, oscillation
-                \item Modes: motion as simpler components
-                \item Spectra: compact dynamical summaries
+                \item Eigenvectors: direction/shape
+                \item Easy to work with
             \end{itemize}
         \end{column}
         \begin{column}{0.48\textwidth}
             \textbf{Nonlinear systems}
             \begin{itemize}
-                \item Fixed points, cycles, bifurcations, chaos
+                \item Linearize around fixed points - local information
                 \item No global modal picture in state coordinates
                 \item Structure may be hidden in nonlinear observables
             \end{itemize}
@@ -110,7 +110,7 @@
     \[
         \Koop \xi_k = \lambda_k \xi_k,
         \qquad
-        \xi_k(x_{n+1}) = \lambda_k \xi_k(x_n).
+        \xi_k(x_{n+1}) = \lambda_k \xi_k(x_n) \quad \text{(Scalar multiplication)}
     \]
 
     \vspace{0.15cm}
@@ -138,10 +138,10 @@
         \end{column}
     \end{columns}
 
-    \vspace{0.25cm}
-    \begin{alertblock}{Interpretation}
-        Nonlinear motion in state space can become scalar multiplication in an eigenfunction coordinate.
-    \end{alertblock}
+    % \vspace{0.25cm}
+    % \begin{alertblock}{Interpretation}
+    %     Nonlinear motion in state space can become scalar multiplication in an eigenfunction coordinate.
+    % \end{alertblock}
 \end{frame}
 
 \begin{frame}{A Small Exact Example}
@@ -360,25 +360,25 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{Dictionary Sweep: Accuracy Versus Cost}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Accuracy}
-                Richer dictionaries reduce one-step error.
-            \end{block}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Cost}
-                Solve time grows with \(N_\psi\).
-            \end{block}
-        \end{column}
-    \end{columns}
+% \begin{frame}{Dictionary Sweep: Accuracy Versus Cost}
+%     \begin{columns}[T,onlytextwidth]
+%         \begin{column}{0.48\textwidth}
+%             \begin{block}{Accuracy}
+%                 Richer dictionaries reduce one-step error.
+%             \end{block}
+%         \end{column}
+%         \begin{column}{0.48\textwidth}
+%             \begin{block}{Cost}
+%                 Solve time grows with \(N_\psi\).
+%             \end{block}
+%         \end{column}
+%     \end{columns}
 
-    \vspace{0.25cm}
-    \begin{alertblock}{Practical conclusion}
-        The observable dictionary has to match the dynamics.
-    \end{alertblock}
-\end{frame}
+%     \vspace{0.25cm}
+%     \begin{alertblock}{Practical conclusion}
+%         The observable dictionary has to match the dynamics.
+%     \end{alertblock}
+% \end{frame}
 
 \begin{frame}{Koopman Eigenvalues Across Regimes}
     \centering
@@ -388,26 +388,26 @@
     Degree-3 polynomial dictionary; unit circle shown for reference.
 \end{frame}
 
-\begin{frame}{Reading the Spectrum}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Fixed point}
-                Real eigenvalues inside the unit circle.
-            \end{block}
-            \begin{block}{Limit cycle}
-                Conjugate pairs near roots of unity.
-            \end{block}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Period doubled}
-                New intermediate-angle conjugate pairs.
-            \end{block}
-            \begin{block}{Double scroll}
-                Broad spread on and inside the unit circle.
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
+% \begin{frame}{Reading the Spectrum}
+%     \begin{columns}[T,onlytextwidth]
+%         \begin{column}{0.48\textwidth}
+%             \begin{block}{Fixed point}
+%                 Real eigenvalues inside the unit circle.
+%             \end{block}
+%             \begin{block}{Limit cycle}
+%                 Conjugate pairs near roots of unity.
+%             \end{block}
+%         \end{column}
+%         \begin{column}{0.48\textwidth}
+%             \begin{block}{Period doubled}
+%                 New intermediate-angle conjugate pairs.
+%             \end{block}
+%             \begin{block}{Double scroll}
+%                 Broad spread on and inside the unit circle.
+%             \end{block}
+%         \end{column}
+%     \end{columns}
+% \end{frame}
 
 \begin{frame}{Period Doubling: Modes Reconstruct Geometry}
     \begin{columns}[T,onlytextwidth]
