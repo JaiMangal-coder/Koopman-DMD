@@ -233,10 +233,7 @@
         \end{itemize}
     \end{alertblock}
     \vspace{0.1cm}
-
-    \centering
-    {\small This connects data-driven Koopman analysis to a real experimental nonlinear system.}
-\end{frame}
+   \end{frame}
 
 \begin{frame}{Chua's Circuit: Governing Equations}
     \begin{columns}[T,onlytextwidth]
@@ -317,7 +314,15 @@
 
     \vspace{0.1cm}
     \centering
-    {\small Fixed point \(\rightarrow\) limit cycle \(\rightarrow\) period doubling \(\rightarrow\) double-scroll chaos.}
+    \[
+        \text{Fixed point}
+        \;\xrightarrow{\;\text{Hopf}\;}
+        \text{Limit cycle}
+        \;\xrightarrow{\;\text{Period doubling}\;}
+        \text{2-cycle}
+        \;\xrightarrow{\;\text{cascade}\;}
+        \text{Chaos (double-scroll attractor)}
+    \]
 \end{frame}
 
 \begin{frame}{Chua's Circuit: Dynamical Characteristics}
@@ -329,7 +334,7 @@
                 \;\xrightarrow{\;R\downarrow\;}\;
                 \text{limit cycle}
                 \;\to\;
-                \text{period-}\!2
+                \text{2-cycle}
                 \;\to\;
                 \text{chaos}
             \]
