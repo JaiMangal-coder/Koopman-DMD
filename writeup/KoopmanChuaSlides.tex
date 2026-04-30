@@ -212,6 +212,32 @@
     \end{block}
 \end{frame}
 
+\begin{frame}{From Koopman Theory to This Project}
+    \begin{block}{What we have so far}
+        EDMD provides a way to approximate the Koopman operator directly from data,
+        giving access to eigenvalues, modes, and eigenfunctions of nonlinear systems.
+    \end{block}
+
+    \vspace{0.2cm}
+    \begin{block}{What we want to do}
+        Apply the EDMD to a real experimental system that exhibits chaos, interpret the resulting spectra and modes, and recreate the observed dynamics from the Koopman method.
+    \end{block}
+
+    \vspace{0.2cm}
+    \begin{alertblock}{Our approach}
+        \begin{itemize}
+            \item Use \textbf{Chua’s circuit} as a controllable source of nonlinear dynamics
+            \item Measure state variables \(x,y,z\) across regimes (fixed point → chaos)
+            \item Apply \textbf{EDMD} to extract Koopman spectra and eigenfunctions
+            \item Use spectra and modes to recreate the chaos of \textbf{Chua’s circuit}.
+        \end{itemize}
+    \end{alertblock}
+    \vspace{0.1cm}
+
+    \centering
+    {\small This connects data-driven Koopman analysis to a real experimental nonlinear system.}
+\end{frame}
+
 \begin{frame}{Chua's Circuit: Governing Equations}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.50\textwidth}
@@ -239,7 +265,7 @@
         \end{column}
         \begin{column}{0.46\textwidth}
             \centering
-            \includegraphics[height=0.5\textheight]{KppmanChuaCircuitDiagram.png}
+            \includegraphics[height=0.5\textheight]{KoopmanChuaCircuitDiagram.png}
 
             \vspace{0.05cm}
             {\footnotesize Circuit used for the measured Chua data.}
@@ -254,7 +280,7 @@
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.44\textwidth}
             \begin{itemize}
-                \item Piecewise-linear Chua diode
+                \item Piecewise-linear Chua diode implemented with operational amplifiers.
                 \item Potentiometers set the regime
                 \item Shifter and Amplifyier boosts the original signal \(-4V\) to \(+3V\) into the \(0-5V\) range
                 \item Arduino R4 Minima records \(x,y,z\)
