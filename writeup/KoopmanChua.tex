@@ -1,7 +1,6 @@
 % !TEX root = KoopmanChua.tex
 % !TEX program = pdflatex
 \documentclass[11pt]{article}
-
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage{graphicx}
@@ -13,9 +12,9 @@
 \usepackage{subcaption}
 \usepackage{enumitem}
 \usepackage[numbers]{natbib}
-
-\title{Koopman Analysis of Chua's Circuit with EDMD}
-\author{Nonlinear Dynamics and Chaos Project}
+\title{Koopman Analysis of Chua's Circuit with EDMD \\ \vspace{0.2cm}
+\large Nonliner Dynamics and Chaos Project}
+\author{Oscar Jaroker \and Yufeng Gu \and Jai Mangal}
 \date{}
 
 % --- Convenience macros ---
@@ -47,7 +46,7 @@ Consider a discrete-time dynamical system
 \begin{equation}
     x_{n+1} = F(x_n),
 \end{equation}
-where $x_n \in \mathbb{R}^d$. Instead of following the state directly, we consider an observable $g : \mathbb{R}^d \to \mathbb{C}$. The Koopman operator $\mathcal{K}$ acts on observables by composition with the dynamics:
+where $x_n \in \mathbb{R}^d$ and $F$ is (usually) nonlinear. Instead of following the state directly, we consider an observable $g : \mathbb{R}^d \to \mathbb{C}$. The Koopman operator $\mathcal{K}$ acts on observables by composition with the dynamics:
 \begin{equation}
     (\mathcal{K}g)(x) = g(F(x)).
 \end{equation}
