@@ -1,3 +1,5 @@
+% !TEX root = KoopmanChua.tex
+% !TEX program = pdflatex
 \documentclass[11pt]{article}
 
 \usepackage[margin=1in]{geometry}
@@ -5,6 +7,7 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{hyperref}
+\usepackage{bookmark}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{subcaption}
@@ -110,9 +113,7 @@ where $\lambda_k$ are Koopman eigenvalues, $\xi_k$ are eigenfunctions evaluated 
 The eigenvalues indicate decay, growth, or oscillation: complex conjugate pairs correspond to oscillatory behavior, and for periodic dynamics one expects eigenvalues near the unit circle. This spectral language is especially attractive in nonlinear dynamics because it lets us discuss fixed points, limit cycles, and more complicated attractors using a common linear vocabulary, even when the original equations are nonlinear.
 
 \subsection{Brief Description of EDMD}
-Since the Koopman Operator is infinite-dimensional, practical computation requires a
-finite-dimensional approximation. EDMD~\cite{williams2015} works in a
-\emph{dictionary} of $N_\psi$ observables
+Because the Koopman operator acts on an infinite-dimensional function space, practical computation requires a finite-dimensional approximation. EDMD~\cite{williams2015} works in a \emph{dictionary} of $N_\psi$ observables
 \begin{equation}
     \boldsymbol{\psi}(\mathbf{x}) =
     \begin{bmatrix} \psi_1(\mathbf{x}) & \psi_2(\mathbf{x}) & \cdots &
@@ -162,7 +163,7 @@ $5000$ samples were recorded at a sampling frequency of roughly $30$\,kHz, then 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{writeup/ChuaCircuit.png}
+    \includegraphics[width=0.5\linewidth]{ChuaCircuit.png}
     \caption{Implementation of Chua Circuit using 4 op-amps + circuit to shift voltage to 0-5V range for Arduino. Potentiometers used as the bifurcation parameter.}
     \label{fig:circuit}
 \end{figure}
@@ -204,6 +205,61 @@ $5000$ samples were recorded at a sampling frequency of roughly $30$\,kHz, then 
     \caption{Phase portraits ($x$ versus $y$) of the four measured regimes. The fixed-point regime (top left) shows scatter around a single point, indicating that the trajectory has settled to an equilibrium with measurement noise. The limit cycle (top right) traces a single closed loop, the geometric signature of sustained periodic oscillation. The period-doubled regime (bottom left) traces a doubled loop --- the trajectory must complete two passes before returning to its starting point. The double-scroll regime (bottom right) shows the iconic two-lobe chaotic attractor that distinguishes Chua's circuit. These four panels illustrate the qualitative progression through the route to chaos in raw state space, before any Koopman analysis is applied.}
     \label{fig:measured-data}
 \end{figure}
+
+\section{Classical Nonlinear Analysis of the Four Regimes}
+
+Before applying the Koopman framework, we characterize each regime using two classical measures from nonlinear dynamics: the box-counting fractal dimension and the largest Lyapunov exponent. These provide a quantitative ground truth about whether each regime is truly chaotic and serve as a baseline for interpreting the Koopman spectral picture.
+
+\subsection{Box-Counting Fractal Dimension}
+
+A strange attractor is characterized geometrically by a non-integer dimension. The box-counting (capacity) dimension $D_0$ counts how many $\varepsilon$-boxes are needed to cover the attractor:
+\begin{equation}
+    D_0 = -\lim_{\varepsilon \to 0} \frac{\log N(\varepsilon)}{\log \varepsilon}.
+\end{equation}
+In practice the limit is estimated by a linear regression of $\log N$ against $\log(1/\varepsilon)$ over a scaling region that avoids both the data-limited small-scale floor and the coarse-scale regime where the power law has not yet established. The three-dimensional state $(x, y, z)$ is normalized axis-by-axis to $[0,1]^3$ before covering to preserve local geometry.
+
+The results are shown in Figure~\ref{fig:fractal-dims} and summarized in Table~\ref{tab:classical}. The fixed-point regime yields a near-zero dimension ($D_0 = 0.181$), confirming that the trajectory has collapsed to a compact neighborhood of an equilibrium; the non-integer value reflects measurement noise smearing the point into a small cluster. The limit-cycle and period-doubled regimes give dimensions close to 1 ($D_0 = 1.101$ and $1.052$), consistent with a one-dimensional curve in state space. The double-scroll regime yields $D_0 = 1.519$, clearly above 1 and providing direct geometric evidence of a strange attractor. The underestimate of the theoretical value $D_F \approx 2.05$--$2.3$ \citep{chua1986} is a finite-sample artifact --- reliable box-counting requires $\sim 10^{D_F}$ points to resolve the scaling region --- but the qualitative ordering across regimes is unambiguous.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{../chua_analysis/chua_boxcounting.png}
+    \caption{Box-counting fractal dimension of the four Chua regimes. Top row: $\log N(\varepsilon)$ versus $\log\varepsilon$ with linear fit (dashed); the slope gives $D_0$. Bottom row: 3-D phase portraits. The dimension increases from near zero (fixed point) through approximately 1 (periodic regimes) to $1.519$ (double scroll), confirming the fractal geometry of the strange attractor.}
+    \label{fig:fractal-dims}
+\end{figure}
+
+\subsection{Largest Lyapunov Exponent}
+
+Lyapunov exponents measure the mean exponential rate of separation of nearby trajectories; a positive largest exponent $\lambda_1$ is the defining hallmark of chaos. We use the algorithm of \citet{rosenstein1993}, which tracks the mean log-divergence of nearest-neighbor pairs. For each reference point $i$, the nearest spatial neighbor $j$ is found outside a Theiler exclusion window $W$ (set to twice the first zero-crossing lag of the autocorrelation of the $x$ channel) to suppress temporally correlated neighbors. The average over all pairs,
+\begin{equation}
+    \left\langle \ln \frac{d_k}{d_0} \right\rangle \approx \lambda_1 k + \text{const},
+\end{equation}
+grows linearly in the initial phase at rate $\lambda_1$.
+
+Results are shown in Figure~\ref{fig:lyapunov-largest} and collected in Table~\ref{tab:classical}. The fixed-point regime is the only one with a clearly negative slope ($\lambda_1 = -0.0042$/sample), reflecting contraction toward the equilibrium. The limit-cycle and period-doubled regimes yield small positive values ($+0.0172$ and $+0.0182$/sample); these arise because the Rosenstein estimator fits the initial transient growth before the divergence curve saturates as neighbors leave the compact attractor, and measurement noise introduces a slight upward bias on periodic orbits. The qualitatively decisive result is the double-scroll regime, which gives $\lambda_1 = +0.0726$/sample --- more than four times the periodic values and with a clean linear growth region --- confirming sensitive dependence on initial conditions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../chua_analysis/chua_lyapunov.png}
+    \caption{Largest Lyapunov exponent via the Rosenstein method for all four Chua regimes. Solid curves show the mean log-divergence $\langle \ln(d_k / d_0) \rangle$; dashed lines are the linear fits to the initial growth region. The fixed-point regime is the only one with a clearly negative slope. The double-scroll regime shows a clean linear initial growth at $\lambda_1 = +0.0726$/sample, more than four times the small positive bias seen in the periodic regimes.}
+    \label{fig:lyapunov-largest}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Classical nonlinear measures for the four Chua regimes. $D_0$: box-counting fractal dimension. $\lambda_1$: largest Lyapunov exponent (Rosenstein method, per sample).}
+    \label{tab:classical}
+    \setlength{\tabcolsep}{14pt}
+    \begin{tabular}{lcc}
+        \toprule
+        Regime & $D_0$ & $\lambda_1$ (/sample) \\
+        \midrule
+        Fixed Point    & 0.181 & $-0.0042$ \\
+        Limit Cycle    & 1.101 & $+0.0172$ \\
+        Period-Doubled & 1.052 & $+0.0182$ \\
+        Double Scroll  & 1.519 & $+0.0726$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \section{EDMD Analysis of the Four Regimes}
 \subsection{Choice of Dictionary}
@@ -289,6 +345,8 @@ Several points emerge from this project. First, the Koopman framework provides a
 Second, dictionary choice is central. The dictionary sweep shows that better observables can substantially improve the EDMD approximation, but not for free: richer dictionaries increase computation time and can worsen numerical conditioning. This is both a practical issue and a conceptual one, since it emphasizes that Koopman analysis depends on choosing observables that reflect the underlying physics.
 
 Third, the Chua circuit data illustrate a meaningful progression through the route to chaos. The fixed-point regime is spectrally simple, the limit cycle exhibits conjugate-pair structure associated with sustained oscillation, the period-doubled regime reveals subharmonic content, and the double-scroll regime shows that Koopman eigenfunctions can still uncover coherent structure even in chaos. This is all still done without any knowledge of the underlying governing dynamical equations.
+
+Fourth, the classical and Koopman analyses are complementary rather than competing. The box-counting dimension ($D_0 = 1.519$) confirms that the double-scroll attractor is geometrically fractal, and the positive Lyapunov exponent ($\lambda_1 = +0.0726$/sample) certifies chaos. These classical tools answer the diagnostic question ``is it chaotic?'' definitively. The Koopman framework then adds a different kind of understanding: even within the chaotic attractor, there exist nonlinear observables that evolve approximately linearly and encode the attractor's geometry. The eigenfunction coloring of the double scroll, for instance, achieves a lobe partition that no voltage threshold can replicate --- a result that is invisible to Lyapunov or fractal-dimension analysis but falls naturally out of the spectral structure of the Koopman operator. The two approaches together provide a more complete picture than either one alone.
 
 \section{Conclusion}
 This project used the Koopman operator as a bridge between linear spectral ideas and nonlinear dynamical behavior. A simple background example showed how augmenting the observable space can produce a closed linear description when the right nonlinear term is included. EDMD then provided a practical way to approximate Koopman spectral quantities from experimental data \citep{koopman1931,williams2015}.
